@@ -1,0 +1,12 @@
+# Node.js
+node_modules/
+.env
+uploads/
+*.log
+npm-debug.log*
+dist/
+coverage/
+.DS_Store
+
+# VSCode
+.vscode/
