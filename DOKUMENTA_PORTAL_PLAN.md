@@ -22,11 +22,11 @@
 
 ### **Backend:**
 
-- Node.js/Express server (port 3001)
-- JWT authentication
-- Microsoft Graph API integracija
-- Multer za file upload
-- Sharp za image processing
+- [x] Node.js/Express server (port 3001)
+- [x] JWT authentication
+- [ ] Microsoft Graph API integracija
+- [x] Multer za file upload
+- [ ] Sharp za image processing
 
 ### **Database:**
 
@@ -232,10 +232,10 @@ User.Read (Delegated)
 
 ```javascript
 // config/onedrive.js
-const clientId = 'your-client-id';
-const clientSecret = 'your-client-secret';
-const redirectUri = 'https://dokumenta.summasummarum.me/auth/callback';
-const scopes = ['Files.ReadWrite.All', 'User.Read'];
+const clientId = "your-client-id";
+const clientSecret = "your-client-secret";
+const redirectUri = "https://dokumenta.summasummarum.me/auth/callback";
+const scopes = ["Files.ReadWrite.All", "User.Read"];
 ```
 
 ### **OneDrive Folder Mapping:**
@@ -262,10 +262,10 @@ OneDrive/
 
 - [x] DNS A record setup (dokumenta.summasummarum.me) ✅ GOTOVO
 - [x] Nginx konfiguracija i SSL sertifikat ✅ GOTOVO
-- [ ] Kreiranje novog Node.js projekta
+- [x] Kreiranje novog Node.js projekta
 - [ ] Database setup i tabele
-- [ ] Basic authentication (login/logout)
-- [ ] Jednostavan file upload
+- [x] Basic authentication (login/logout)
+- [x] Jednostavan file upload
 
 ### **FAZA 2: Core Features (Dani 4-7)**
 

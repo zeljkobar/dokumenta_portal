@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Dokumenta Portal</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+      <div class="container">
+        <a class="navbar-brand" href="#">📄 Dokumenta Portal</a>
+        <div class="navbar-nav ms-auto">
+          <span class="navbar-text me-3" id="userWelcome"></span>
+          <button class="btn btn-outline-light btn-sm" onclick="Auth.logout()">
+            Odjavi se
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-4">
+      <div class="row">
+        <div class="col-12">
+          <div class="card shadow">
+            <div class="card-body text-center p-5">
+              <h2 class="mb-4">Dobrodošli u Dokumenta Portal</h2>
+              <p class="text-muted mb-4">
+                Izaberite tip dokumenta koji želite da uploadujete
+              </p>
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                      <h5 class="card-title">📋 Računi</h5>
+                      <p class="card-text">Upload ulaznih računa</p>
+                      <div class="d-grid gap-2">
+                        <button
+                          class="btn btn-primary"
+                          onclick="startUpload('racun')"
+                        >
+                          📷 Slikaj račun
+                        </button>
+                        <button
+                          class="btn btn-outline-primary"
+                          onclick="uploadFromFile('racun')"
+                        >
+                          📁 Upload sa računara
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                      <h5 class="card-title">📄 Ugovori</h5>
+                      <p class="card-text">Upload ugovora i dokumenata</p>
+                      <div class="d-grid gap-2">
+                        <button
+                          class="btn btn-primary"
+                          onclick="startUpload('ugovor')"
+                        >
+                          📷 Slikaj ugovor
+                        </button>
+                        <button
+                          class="btn btn-outline-primary"
+                          onclick="uploadFromFile('ugovor')"
+                        >
+                          📁 Upload sa računara
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                      <h5 class="card-title">🏦 Izvodi</h5>
+                      <p class="card-text">Bankovni izvodi</p>
+                      <div class="d-grid gap-2">
+                        <button
+                          class="btn btn-primary"
+                          onclick="startUpload('izvod')"
+                        >
+                          📷 Slikaj izvod
+                        </button>
+                        <button
+                          class="btn btn-outline-primary"
+                          onclick="uploadFromFile('izvod')"
+                        >
+                          📁 Upload sa računara
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                      <h5 class="card-title">✅ Potvrde</h5>
+                      <p class="card-text">Potvrde i ostala dokumenta</p>
+                      <div class="d-grid gap-2">
+                        <button
+                          class="btn btn-primary"
+                          onclick="startUpload('potvrda')"
+                        >
+                          📷 Slikaj potvrdu
+                        </button>
+                        <button
+                          class="btn btn-outline-primary"
+                          onclick="uploadFromFile('potvrda')"
+                        >
+                          📁 Upload sa računara
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden file input for file uploads -->
+    <input
+      type="file"
+      id="fileInput"
+      style="display: none"
+      accept="image/*,.pdf,.doc,.docx"
+      multiple
+    />
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+  </body>
+</html>
