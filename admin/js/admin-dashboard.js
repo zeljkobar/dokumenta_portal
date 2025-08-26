@@ -138,7 +138,7 @@ function displayDocuments(documents) {
             </td>
             <td>${doc.username}</td>
             <td>
-                <small>${formatDate(doc.uploadDate)}</small>
+                <small>${formatDate(doc.upload_date || doc.uploadDate)}</small>
             </td>
             <td>
                 <small>${formatFileSize(doc.compressedSize)}</small>
@@ -360,15 +360,28 @@ async function downloadAll() {
 }
 
 function formatDate(dateString) {
-  const date = new Date(dateString);
-  return (
-    date.toLocaleDateString("sr-RS") +
-    " " +
-    date.toLocaleTimeString("sr-RS", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  );
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    return (
+      date.toLocaleDateString("sr-RS") +
+      " " +
+      date.toLocaleTimeString("sr-RS", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
+  } catch (error) {
+    console.error('Error formatting date:', dateString, error);
+    return 'Invalid Date';
+  }
 }
 
 function showError(message) {
