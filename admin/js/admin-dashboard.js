@@ -116,15 +116,22 @@ function displayDocuments(documents) {
                 }" data-filename="${doc.filename}">
             </td>
             <td>
-                <img src="${API_BASE}/files/${doc.filename}" 
+                <img src="${API_BASE}/files/${doc.filename || doc.file_name}" 
                      class="document-thumbnail" 
                      alt="Thumbnail"
-                     onclick="showImagePreview('${doc.filename}', '${
-        doc.originalName
+                     onclick="showImagePreview('${
+                       doc.filename || doc.file_name
+                     }', '${
+        doc.original_name || doc.originalName || doc.filename || doc.file_name
       }')">
             </td>
             <td>
-                <strong>${doc.originalName || doc.filename}</strong>
+                <strong>${
+                  doc.original_name ||
+                  doc.originalName ||
+                  doc.filename ||
+                  doc.file_name
+                }</strong>
                 ${
                   doc.comment
                     ? `<br><small class="text-muted">${doc.comment}</small>`
@@ -133,7 +140,7 @@ function displayDocuments(documents) {
             </td>
             <td>
                 <span class="badge bg-primary">${getDocumentTypeLabel(
-                  doc.documentType
+                  doc.document_type || doc.documentType || "undefined"
                 )}</span>
             </td>
             <td>${doc.username}</td>
@@ -141,11 +148,13 @@ function displayDocuments(documents) {
                 <small>${formatDate(doc.upload_date || doc.uploadDate)}</small>
             </td>
             <td>
-                <small>${formatFileSize(doc.compressedSize)}</small>
+                <small>${formatFileSize(
+                  doc.compressed_size || doc.compressedSize || 0
+                )}</small>
                 ${
-                  doc.originalSize
+                  doc.original_size || doc.originalSize
                     ? `<br><small class="text-muted">Orig: ${formatFileSize(
-                        doc.originalSize
+                        doc.original_size || doc.originalSize
                       )}</small>`
                     : ""
                 }
@@ -248,7 +257,7 @@ function getDocumentTypeLabel(type) {
 }
 
 function formatFileSize(bytes) {
-  if (bytes === 0) return "0 B";
+  if (!bytes || bytes === 0 || isNaN(bytes)) return "0 B";
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -360,16 +369,16 @@ async function downloadAll() {
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  
+  if (!dateString) return "N/A";
+
   try {
     const date = new Date(dateString);
-    
+
     // Check if date is valid
     if (isNaN(date.getTime())) {
-      return 'Invalid Date';
+      return "Invalid Date";
     }
-    
+
     return (
       date.toLocaleDateString("sr-RS") +
       " " +
@@ -379,8 +388,8 @@ function formatDate(dateString) {
       })
     );
   } catch (error) {
-    console.error('Error formatting date:', dateString, error);
-    return 'Invalid Date';
+    console.error("Error formatting date:", dateString, error);
+    return "Invalid Date";
   }
 }
 

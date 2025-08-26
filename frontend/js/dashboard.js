@@ -69,7 +69,7 @@ async function uploadFile(file, documentType) {
 
     // Create FormData
     const formData = new FormData();
-    formData.append("document", file);
+    formData.append("file", file);
     formData.append("documentType", documentType);
     formData.append("comment", "");
     formData.append("pageNumber", "1");

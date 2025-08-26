@@ -33,11 +33,14 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit (increased from 10MB)
   },
   fileFilter: (req, file, cb) => {
-    // Accept only images
-    if (file.mimetype.startsWith("image/")) {
+    // Accept images and PDFs
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype === "application/pdf"
+    ) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed!"), false);
+      cb(new Error("Only image files and PDFs are allowed!"), false);
     }
   },
 });
@@ -133,29 +136,44 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
-// Image processing function
-async function processImage(buffer, filename, documentType) {
+// File processing function
+async function processFile(buffer, filename, documentType, mimetype) {
   try {
     // Generate unique filename
     const timestamp = Date.now();
     const randomSuffix = Math.round(Math.random() * 1e9);
-    const processedFilename = `${documentType}_${timestamp}_${randomSuffix}.jpg`;
-    const outputPath = path.join(__dirname, "uploads", processedFilename);
 
-    // Process image with Sharp
-    const processedBuffer = await sharp(buffer)
-      .resize(1920, 1080, {
-        fit: "inside",
-        withoutEnlargement: true,
-      }) // Max dimensions, maintain aspect ratio
-      .jpeg({
-        quality: 80,
-        progressive: true,
-      }) // 80% quality, progressive JPEG
-      .rotate() // Auto-rotate based on EXIF
-      .toBuffer();
+    let processedFilename;
+    let processedBuffer;
+    let outputPath;
 
-    // Save processed image
+    if (mimetype.startsWith("image/")) {
+      // Process image with Sharp
+      processedFilename = `${documentType}_${timestamp}_${randomSuffix}.jpg`;
+      outputPath = path.join(__dirname, "uploads", processedFilename);
+
+      processedBuffer = await sharp(buffer)
+        .resize(1920, 1080, {
+          fit: "inside",
+          withoutEnlargement: true,
+        }) // Max dimensions, maintain aspect ratio
+        .jpeg({
+          quality: 80,
+          progressive: true,
+        }) // 80% quality, progressive JPEG
+        .rotate() // Auto-rotate based on EXIF
+        .toBuffer();
+    } else if (mimetype === "application/pdf") {
+      // For PDFs, just save the original file
+      const fileExtension = path.extname(filename) || ".pdf";
+      processedFilename = `${documentType}_${timestamp}_${randomSuffix}${fileExtension}`;
+      outputPath = path.join(__dirname, "uploads", processedFilename);
+      processedBuffer = buffer;
+    } else {
+      throw new Error("Unsupported file type");
+    }
+
+    // Save processed file
     await fs.writeFile(outputPath, processedBuffer);
 
     // Get file stats
@@ -190,18 +208,19 @@ app.post(
       const pageNumber = req.body.pageNumber || 1;
       const totalPages = req.body.totalPages || 1;
 
-      // Process image with Sharp
-      const processedImage = await processImage(
+      // Process file with appropriate method
+      const processedFile = await processFile(
         req.file.buffer,
         req.file.originalname,
-        documentType
+        documentType,
+        req.file.mimetype
       );
 
       console.log("Upload successful:", {
-        filename: processedImage.filename,
-        originalSize: processedImage.originalSize,
-        compressedSize: processedImage.size,
-        compressionRatio: `${processedImage.compressionRatio}%`,
+        filename: processedFile.filename,
+        originalSize: processedFile.originalSize,
+        compressedSize: processedFile.size,
+        compressionRatio: `${processedFile.compressionRatio}%`,
         documentType,
         comment,
         pageNumber,
@@ -210,17 +229,17 @@ app.post(
 
       // Store document metadata in database
       const documentData = {
-        filename: processedImage.filename,
+        filename: processedFile.filename,
         originalName: req.file.originalname,
         userId: req.user.id,
         documentType,
-        originalSize: processedImage.originalSize,
-        compressedSize: processedImage.size,
-        compressionRatio: `${processedImage.compressionRatio}%`,
+        originalSize: processedFile.originalSize,
+        compressedSize: processedFile.size,
+        compressionRatio: `${processedFile.compressionRatio}%`,
         comment,
         pageNumber: parseInt(pageNumber),
         totalPages: parseInt(totalPages),
-        filePath: path.join(__dirname, "uploads", processedImage.filename),
+        filePath: path.join(__dirname, "uploads", processedFile.filename),
       };
 
       const documentId = await DocumentDAO.create(documentData);
@@ -229,10 +248,10 @@ app.post(
         message: "File uploaded and processed successfully",
         documentId,
         file: {
-          filename: processedImage.filename,
-          originalSize: processedImage.originalSize,
-          compressedSize: processedImage.size,
-          compressionRatio: processedImage.compressionRatio,
+          filename: processedFile.filename,
+          originalSize: processedFile.originalSize,
+          compressedSize: processedFile.size,
+          compressionRatio: processedFile.compressionRatio,
           documentType,
           pageNumber,
           totalPages,
