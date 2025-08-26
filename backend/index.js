@@ -22,6 +22,9 @@ app.use(morgan("dev"));
 // Serve static files from frontend directory
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+// Serve static files from admin directory
+app.use("/admin", express.static(path.join(__dirname, "../admin")));
+
 // Multer konfiguracija (temporary upload)
 const storage = multer.memoryStorage(); // Store in memory for Sharp processing
 const upload = multer({
@@ -249,6 +252,16 @@ app.get("/api/protected", authenticateToken, (req, res) => {
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend", "index.html"));
+});
+
+// Admin login page
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "../admin", "index.html"));
+});
+
+// Admin dashboard page
+app.get("/admin/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "../admin", "dashboard.html"));
 });
 
 // API health check

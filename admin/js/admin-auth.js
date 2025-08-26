@@ -1,5 +1,5 @@
 // Admin Auth utility functions
-const API_BASE = "http://localhost:3001/api";
+const API_BASE = "/api";
 
 class AdminAuth {
   static getToken() {
