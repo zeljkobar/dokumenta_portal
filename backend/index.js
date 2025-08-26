@@ -19,6 +19,9 @@ app.use(express.json({ limit: "50mb" })); // Increase JSON payload limit
 app.use(express.urlencoded({ limit: "50mb", extended: true })); // Increase URL encoded payload limit
 app.use(morgan("dev"));
 
+// Serve static files from frontend directory
+app.use(express.static(path.join(__dirname, "../frontend")));
+
 // Multer konfiguracija (temporary upload)
 const storage = multer.memoryStorage(); // Store in memory for Sharp processing
 const upload = multer({
@@ -245,6 +248,11 @@ app.get("/api/protected", authenticateToken, (req, res) => {
 });
 
 app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend", "index.html"));
+});
+
+// API health check
+app.get("/api/health", (req, res) => {
   res.json({ message: "DOKUMENTA PORTAL backend radi!" });
 });
 
