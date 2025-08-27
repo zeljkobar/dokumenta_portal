@@ -16,7 +16,178 @@ document.addEventListener("DOMContentLoaded", function () {
   loadStats();
   loadUsers();
   loadDocuments();
+
+  // Setup tab change handlers
+  document.getElementById("users-tab").addEventListener("click", function () {
+    loadUsers();
+  });
+
+  // Setup form handlers
+  setupUserManagement();
 });
+
+function setupUserManagement() {
+  // Add user form
+  document
+    .getElementById("addUserForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+      await addUser();
+    });
+
+  // Edit user form
+  document
+    .getElementById("editUserForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+      await updateUser();
+    });
+}
+
+async function addUser() {
+  const userData = {
+    username: document.getElementById("userUsername").value,
+    email: document.getElementById("userEmail").value,
+    password: document.getElementById("userPassword").value,
+    fullName: document.getElementById("userFullName").value,
+    companyName: document.getElementById("userCompanyName").value,
+    phone: document.getElementById("userPhone").value,
+    pib: document.getElementById("userPib").value,
+    notes: document.getElementById("userNotes").value,
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/users`, {
+      method: "POST",
+      headers: {
+        ...AdminAuth.getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      alert("Korisnik je uspešno dodat!");
+
+      // Close modal and reset form
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("addUserModal")
+      );
+      modal.hide();
+      document.getElementById("addUserForm").reset();
+
+      // Reload users table
+      loadUsers();
+    } else {
+      const error = await response.json();
+      alert("Greška: " + (error.error || "Neuspešno dodavanje korisnika"));
+    }
+  } catch (error) {
+    console.error("Error adding user:", error);
+    alert("Greška pri dodavanju korisnika");
+  }
+}
+
+async function updateUser() {
+  const userId = document.getElementById("editUserId").value;
+  const userData = {
+    username: document.getElementById("editUserUsername").value,
+    email: document.getElementById("editUserEmail").value,
+    fullName: document.getElementById("editUserFullName").value,
+    companyName: document.getElementById("editUserCompanyName").value,
+    phone: document.getElementById("editUserPhone").value,
+    pib: document.getElementById("editUserPib").value,
+    status: document.getElementById("editUserStatus").value,
+    notes: document.getElementById("editUserNotes").value,
+  };
+
+  // Only include password if it's provided
+  const password = document.getElementById("editUserPassword").value;
+  if (password) {
+    userData.password = password;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+      method: "PUT",
+      headers: {
+        ...AdminAuth.getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (response.ok) {
+      alert("Korisnik je uspešno ažuriran!");
+
+      // Close modal
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("editUserModal")
+      );
+      modal.hide();
+
+      // Reload users table
+      loadUsers();
+    } else {
+      const error = await response.json();
+      alert("Greška: " + (error.error || "Neuspešno ažuriranje korisnika"));
+    }
+  } catch (error) {
+    console.error("Error updating user:", error);
+    alert("Greška pri ažuriranju korisnika");
+  }
+}
+
+function editUser(userId) {
+  // Find user data from current table
+  const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+  if (!userRow) return;
+
+  const cells = userRow.cells;
+
+  // Populate edit form
+  document.getElementById("editUserId").value = userId;
+  document.getElementById("editUserUsername").value = cells[1].textContent;
+  document.getElementById("editUserEmail").value = cells[2].textContent;
+  document.getElementById("editUserPassword").value = "";
+  document.getElementById("editUserCompany").value =
+    cells[6]?.textContent || "";
+  document.getElementById("editUserPhone").value = cells[7]?.textContent || "";
+  document.getElementById("editUserStatus").value =
+    cells[3].textContent.toLowerCase();
+  document.getElementById("editUserNotes").value = "";
+
+  // Show modal
+  const modal = new bootstrap.Modal(document.getElementById("editUserModal"));
+  modal.show();
+}
+
+async function deleteUser(userId, username) {
+  if (
+    !confirm(`Da li ste sigurni da želite da obrišete korisnika "${username}"?`)
+  ) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: AdminAuth.getAuthHeaders(),
+    });
+
+    if (response.ok) {
+      alert("Korisnik je uspešno obrisan!");
+      loadUsers();
+    } else {
+      const error = await response.json();
+      alert("Greška: " + (error.error || "Neuspešno brisanje korisnika"));
+    }
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    alert("Greška pri brisanju korisnika");
+  }
+}
 
 async function loadStats() {
   try {
@@ -49,7 +220,10 @@ async function loadUsers() {
 
     if (response.ok) {
       const users = await response.json();
+
+      // Update filter dropdown
       const userSelect = document.getElementById("filterUser");
+      userSelect.innerHTML = '<option value="">Svi korisnici</option>';
 
       users.forEach((user) => {
         const option = document.createElement("option");
@@ -57,9 +231,66 @@ async function loadUsers() {
         option.textContent = user.username;
         userSelect.appendChild(option);
       });
+
+      // Update users table
+      const usersTable = document.getElementById("usersTable");
+      if (usersTable) {
+        if (users.length === 0) {
+          usersTable.innerHTML = `
+            <tr>
+              <td colspan="7" class="text-center">Nema registrovanih korisnika</td>
+            </tr>
+          `;
+        } else {
+          usersTable.innerHTML = users
+            .map(
+              (user) => `
+            <tr data-user-id="${user.id}">
+              <td>${user.id}</td>
+              <td>${user.username}</td>
+              <td>${user.email || "-"}</td>
+              <td>
+                <span class="badge ${
+                  user.status === "active" ? "bg-success" : "bg-secondary"
+                }">
+                  ${user.status === "active" ? "Aktivan" : "Neaktivan"}
+                </span>
+              </td>
+              <td>${
+                user.last_login
+                  ? new Date(user.last_login).toLocaleDateString("sr-RS")
+                  : "Nikad"
+              }</td>
+              <td>${user.document_count || 0}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editUser(${
+                  user.id
+                })">
+                  ✏️ Uredi
+                </button>
+                <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteUser(${
+                  user.id
+                }, '${user.username}')">
+                  🗑️ Obriši
+                </button>
+              </td>
+            </tr>
+          `
+            )
+            .join("");
+        }
+      }
     }
   } catch (error) {
     console.error("Error loading users:", error);
+    const usersTable = document.getElementById("usersTable");
+    if (usersTable) {
+      usersTable.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-danger">Greška pri učitavanju korisnika</td>
+        </tr>
+      `;
+    }
   }
 }
 

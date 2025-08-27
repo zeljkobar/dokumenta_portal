@@ -38,18 +38,18 @@
                 <div class="col-md-6">
                   <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body">
-                      <h5 class="card-title">📋 Računi</h5>
-                      <p class="card-text">Upload ulaznih računa</p>
+                      <h5 class="card-title">� Ulazni dokumenti</h5>
+                      <p class="card-text">Računi dobavljača, ulazne fakture</p>
                       <div class="d-grid gap-2">
                         <button
                           class="btn btn-primary"
-                          onclick="startUpload('racun')"
+                          onclick="startUpload('ulazni')"
                         >
-                          📷 Slikaj račun
+                          📷 Slikaj dokument
                         </button>
                         <button
                           class="btn btn-outline-primary"
-                          onclick="uploadFromFile('racun')"
+                          onclick="uploadFromFile('ulazni')"
                         >
                           📁 Upload sa računara
                         </button>
@@ -61,18 +61,18 @@
                 <div class="col-md-6">
                   <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body">
-                      <h5 class="card-title">📄 Ugovori</h5>
-                      <p class="card-text">Upload ugovora i dokumenata</p>
+                      <h5 class="card-title">� Izlazni dokumenti</h5>
+                      <p class="card-text">Fakture kupcima, izlazni računi</p>
                       <div class="d-grid gap-2">
                         <button
                           class="btn btn-primary"
-                          onclick="startUpload('ugovor')"
+                          onclick="startUpload('izlazni')"
                         >
-                          📷 Slikaj ugovor
+                          📷 Slikaj dokument
                         </button>
                         <button
                           class="btn btn-outline-primary"
-                          onclick="uploadFromFile('ugovor')"
+                          onclick="uploadFromFile('izlazni')"
                         >
                           📁 Upload sa računara
                         </button>
@@ -103,28 +103,31 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                <div class="col-md-6">
-                  <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body">
-                      <h5 class="card-title">✅ Potvrde</h5>
-                      <p class="card-text">Potvrde i ostala dokumenta</p>
-                      <div class="d-grid gap-2">
-                        <button
-                          class="btn btn-primary"
-                          onclick="startUpload('potvrda')"
-                        >
-                          📷 Slikaj potvrdu
-                        </button>
-                        <button
-                          class="btn btn-outline-primary"
-                          onclick="uploadFromFile('potvrda')"
-                        >
-                          📁 Upload sa računara
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+        <!-- Notifications Section -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <div id="notificationsContainer">
+                  <!-- Notifications will be loaded here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <div id="documentsContainer">
+                  <!-- Documents will be loaded here -->
                 </div>
               </div>
             </div>

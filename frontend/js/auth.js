@@ -31,6 +31,13 @@ class Auth {
     if (!token) return null;
 
     try {
+      // Try to get from localStorage first (has full user data)
+      const storedUser = localStorage.getItem("documentaUser");
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+
+      // Fallback to token payload
       const payload = JSON.parse(atob(token.split(".")[1]));
       return { id: payload.id, username: payload.username };
     } catch (e) {
@@ -38,19 +45,21 @@ class Auth {
     }
   }
 
-  static async login(username, password) {
+  static async login(username, password, adminId = 2) {
     const response = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, adminId }),
     });
 
     const data = await response.json();
 
     if (response.ok) {
       this.setToken(data.token);
+      // Store user info
+      localStorage.setItem("documentaUser", JSON.stringify(data.user));
       return { success: true };
     } else {
       return { success: false, error: data.error };

@@ -14,25 +14,27 @@
 
 ### **Frontend:**
 
-- Mobile-first responsive design
-- Camera API za fotografisanje dokumenata
-- Multi-page document support
-- Real-time image compression
-- Preview functionality
+- [x] Mobile-first responsive design ✅ GOTOVO
+- [x] Camera API za fotografisanje dokumenata ✅ GOTOVO
+- [x] Multi-page document support ✅ GOTOVO
+- [x] Real-time image compression ✅ GOTOVO
+- [x] Preview functionality ✅ GOTOVO
+- [x] File upload iz galerije ✅ GOTOVO
 
 ### **Backend:**
 
-- [x] Node.js/Express server (port 3001)
-- [x] JWT authentication
+- [x] Node.js/Express server (port 3001) ✅ GOTOVO
+- [x] JWT authentication ✅ GOTOVO
 - [ ] Microsoft Graph API integracija
-- [x] Multer za file upload
-- [ ] Sharp za image processing
+- [x] Multer za file upload ✅ GOTOVO
+- [x] Sharp za image processing ✅ GOTOVO
 
 ### **Database:**
 
-- MySQL - nova baza `dokumenta_portal`
-- Potpuno odvojena od glavnog sajta
-- Novi database user `dokumenta_app`
+- [x] MySQL - nova baza `dokumenta_portal` ✅ GOTOVO
+- [x] Potpuno odvojena od glavnog sajta ✅ GOTOVO
+- [x] Novi database user `dokumenta_app` ✅ GOTOVO
+- [x] Database tabele kreirane ✅ GOTOVO
 
 ### **Storage:**
 
@@ -262,18 +264,20 @@ OneDrive/
 
 - [x] DNS A record setup (dokumenta.summasummarum.me) ✅ GOTOVO
 - [x] Nginx konfiguracija i SSL sertifikat ✅ GOTOVO
-- [x] Kreiranje novog Node.js projekta
-- [ ] Database setup i tabele
-- [x] Basic authentication (login/logout)
-- [x] Jednostavan file upload
+- [x] Kreiranje novog Node.js projekta ✅ GOTOVO
+- [x] Database setup i tabele ✅ GOTOVO
+- [x] Basic authentication (login/logout) ✅ GOTOVO
+- [x] Jednostavan file upload ✅ GOTOVO
+- [x] PDF i image upload support ✅ GOTOVO
+- [x] Admin panel - osnovni ✅ GOTOVO
 
 ### **FAZA 2: Core Features (Dani 4-7)**
 
-- [ ] Camera API implementacija
-- [ ] Multi-page document support
-- [ ] Image compression
+- [x] Camera API implementacija ✅ GOTOVO
+- [x] Multi-page document support ✅ GOTOVO
+- [x] Image compression ✅ GOTOVO
 - [ ] Microsoft Graph API integracija
-- [ ] Basic admin panel
+- [x] Basic admin panel ✅ GOTOVO
 
 ### **FAZA 3: Advanced Features (Dani 8-10)**
 
@@ -445,6 +449,44 @@ pm2 save
 ---
 
 **Kreirao:** GitHub Copilot  
-**Datum:** August 24, 2025  
-**Status:** Planning faza - DNS setup u toku  
-**Sledeći korak:** Kreiranje Node.js projekta nakon DNS propagacije
+**Datum:** August 26, 2025  
+**Status:** FAZA 1 i 2 ZAVRŠENE - Core funkcionalnost radi!  
+**Sledeći korak:** Microsoft Graph API integracija za OneDrive
+
+---
+
+## ✅ ZAVRŠENE FUNKCIONALNOSTI
+
+### **Korisnici mogu:**
+
+- ✅ Da se login-uju na portal
+- ✅ Da uploaduju dokumente (slike i PDF-ove)
+- ✅ Da koriste kameru za slikanje dokumenata
+- ✅ Da dodaju više strana dokumenta
+- ✅ Da biraju tip dokumenta
+- ✅ Da dodaju komentare
+- ✅ Da vide listu svojih dokumenata
+
+### **Admin može:**
+
+- ✅ Da se login-uje na admin panel
+- ✅ Da vidi sve dokumente svih korisnika
+- ✅ Da vidi statistike
+- ✅ Da upravlja korisnicima
+- ✅ Da preuzima dokumente
+
+### **Sistem:**
+
+- ✅ Kompresuje slike automatski (80% kvalitet)
+- ✅ Podržava PDF i sve image formate
+- ✅ Responsive dizajn za mobile i desktop
+- ✅ Bezbednost - JWT autentifikacija
+- ✅ Upload progress indicator
+- ✅ Error handling
+
+---
+
+## 🔄 TRENUTNI STATUS
+
+Portal je **FUNKCIONALAN** i radi lokalno i na produkciji!
+Upload bug je **REŠEN** - problem je bio u neusklađenosti naziva polja (document vs file).

@@ -23,6 +23,91 @@
       .admin-header {
         background: linear-gradient(135deg, #dc3545 0%, #6f42c1 100%);
       }
+
+      /* Admin tabs styling */
+      .nav-tabs {
+        border-bottom: 2px solid #dee2e6;
+      }
+
+      .nav-tabs .nav-link {
+        color: #495057;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        font-weight: 500;
+        margin-right: 5px;
+        border-radius: 8px 8px 0 0;
+        padding: 12px 20px;
+        transition: all 0.3s ease;
+      }
+
+      .nav-tabs .nav-link:hover {
+        color: #0056b3;
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+      }
+
+      .nav-tabs .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border-color: #007bff;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+      }
+
+      .nav-tabs .nav-link.active:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+      }
+
+      /* Tab content styling */
+      .tab-content {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Button styling improvements */
+      .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      .btn-success:hover {
+        background: linear-gradient(135deg, #218838 0%, #1e9b85 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+      }
+
+      .btn-outline-primary {
+        border-color: #007bff;
+        color: #007bff;
+        transition: all 0.3s ease;
+      }
+
+      .btn-outline-primary:hover {
+        background-color: #007bff;
+        border-color: #007bff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+      }
+
+      .btn-outline-danger {
+        border-color: #dc3545;
+        color: #dc3545;
+        transition: all 0.3s ease;
+      }
+
+      .btn-outline-danger:hover {
+        background-color: #dc3545;
+        border-color: #dc3545;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+      }
     </style>
   </head>
   <body>
@@ -43,131 +128,262 @@
     </nav>
 
     <div class="container mt-4">
-      <!-- Stats Cards -->
-      <div class="row mb-4">
-        <div class="col-md-3">
-          <div class="card bg-primary text-white">
-            <div class="card-body">
-              <h5 class="card-title">Ukupno dokumenata</h5>
-              <h2 id="totalDocuments">-</h2>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-success text-white">
-            <div class="card-body">
-              <h5 class="card-title">Danas uploadovano</h5>
-              <h2 id="todayDocuments">-</h2>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-info text-white">
-            <div class="card-body">
-              <h5 class="card-title">Aktuelni korisnici</h5>
-              <h2 id="activeUsers">-</h2>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-warning text-white">
-            <div class="card-body">
-              <h5 class="card-title">Ukupna veličina</h5>
-              <h2 id="totalSize">-</h2>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Navigation Tabs -->
+      <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            id="documents-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#documents"
+            type="button"
+            role="tab"
+          >
+            📄 Dokumenti
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="users-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#users"
+            type="button"
+            role="tab"
+          >
+            👥 Korisnici
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            id="stats-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#stats"
+            type="button"
+            role="tab"
+          >
+            📊 Statistike
+          </button>
+        </li>
+      </ul>
 
-      <!-- Filters -->
-      <div class="card mb-4">
-        <div class="card-body">
-          <h5 class="card-title">Filteri</h5>
-          <div class="row">
+      <!-- Tab Content -->
+      <div class="tab-content" id="adminTabContent">
+        <!-- Documents Tab -->
+        <div class="tab-pane fade show active" id="documents" role="tabpanel">
+          <!-- Stats Cards -->
+          <div class="row mb-4">
             <div class="col-md-3">
-              <select class="form-select" id="filterType">
-                <option value="">Svi tipovi</option>
-                <option value="racun">Računi</option>
-                <option value="ugovor">Ugovori</option>
-                <option value="izvod">Izvodi</option>
-                <option value="potvrda">Potvrde</option>
-                <option value="ostalo">Ostalo</option>
-              </select>
+              <div class="card bg-primary text-white">
+                <div class="card-body">
+                  <h5 class="card-title">Ukupno dokumenata</h5>
+                  <h2 id="totalDocuments">-</h2>
+                </div>
+              </div>
             </div>
             <div class="col-md-3">
-              <select class="form-select" id="filterUser">
-                <option value="">Svi korisnici</option>
-              </select>
+              <div class="card bg-success text-white">
+                <div class="card-body">
+                  <h5 class="card-title">Danas uploadovano</h5>
+                  <h2 id="todayDocuments">-</h2>
+                </div>
+              </div>
             </div>
             <div class="col-md-3">
-              <input type="date" class="form-control" id="filterDate" />
+              <div class="card bg-info text-white">
+                <div class="card-body">
+                  <h5 class="card-title">Aktuelni korisnici</h5>
+                  <h2 id="activeUsers">-</h2>
+                </div>
+              </div>
             </div>
             <div class="col-md-3">
-              <button class="btn btn-primary" onclick="loadDocuments()">
-                🔍 Filtriraj
-              </button>
-              <button class="btn btn-secondary" onclick="clearFilters()">
-                ✖️ Očisti
-              </button>
+              <div class="card bg-warning text-white">
+                <div class="card-body">
+                  <h5 class="card-title">Ukupna veličina</h5>
+                  <h2 id="totalSize">-</h2>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Documents Table -->
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0">Uploadovani dokumenti</h5>
-            <div>
-              <button
-                type="button"
-                class="btn btn-success me-2"
-                id="downloadSelectedBtn"
-                disabled
+          <!-- Filters -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">Filteri</h5>
+              <div class="row">
+                <div class="col-md-3">
+                  <select class="form-select" id="filterType">
+                    <option value="">Svi tipovi</option>
+                    <option value="racun">Računi</option>
+                    <option value="ugovor">Ugovori</option>
+                    <option value="izvod">Izvodi</option>
+                    <option value="potvrda">Potvrde</option>
+                    <option value="ostalo">Ostalo</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select" id="filterUser">
+                    <option value="">Svi korisnici</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <input type="date" class="form-control" id="filterDate" />
+                </div>
+                <div class="col-md-3">
+                  <button class="btn btn-primary" onclick="loadDocuments()">
+                    🔍 Filtriraj
+                  </button>
+                  <button class="btn btn-secondary" onclick="clearFilters()">
+                    ✖️ Očisti
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Documents Table -->
+          <div class="card">
+            <div class="card-body">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
               >
-                📥 Download Selected
-              </button>
-              <button type="button" class="btn btn-primary" id="downloadAllBtn">
-                📦 Download All
+                <h5 class="card-title mb-0">Uploadovani dokumenti</h5>
+                <div>
+                  <button
+                    type="button"
+                    class="btn btn-success me-2"
+                    id="downloadSelectedBtn"
+                    disabled
+                  >
+                    📥 Download Selected
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="downloadAllBtn"
+                  >
+                    📦 Download All
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          id="selectAll"
+                          class="form-check-input"
+                        />
+                      </th>
+                      <th>Pregled</th>
+                      <th>Naziv</th>
+                      <th>Tip</th>
+                      <th>Korisnik</th>
+                      <th>Datum</th>
+                      <th>Veličina</th>
+                      <th>Kompresija</th>
+                      <th>Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody id="documentsTable">
+                    <tr>
+                      <td colspan="8" class="text-center">
+                        <div class="spinner-border" role="status">
+                          <span class="visually-hidden">Učitava...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- End Documents Tab -->
+
+        <!-- Users Tab -->
+        <div class="tab-pane fade" id="users" role="tabpanel">
+          <div class="row mb-4">
+            <div class="col-md-8">
+              <h4>Upravljanje korisnicima</h4>
+              <p class="text-muted">
+                Dodajte nove klijente koji mogu da uploaduju dokumenta
+              </p>
+            </div>
+            <div class="col-md-4 text-end">
+              <button
+                class="btn btn-success"
+                data-bs-toggle="modal"
+                data-bs-target="#addUserModal"
+              >
+                ➕ Dodaj novog korisnika
               </button>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      id="selectAll"
-                      class="form-check-input"
-                    />
-                  </th>
-                  <th>Pregled</th>
-                  <th>Naziv</th>
-                  <th>Tip</th>
-                  <th>Korisnik</th>
-                  <th>Datum</th>
-                  <th>Veličina</th>
-                  <th>Kompresija</th>
-                  <th>Akcije</th>
-                </tr>
-              </thead>
-              <tbody id="documentsTable">
-                <tr>
-                  <td colspan="8" class="text-center">
-                    <div class="spinner-border" role="status">
-                      <span class="visually-hidden">Učitava...</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Users Table -->
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Korisničko ime</th>
+                      <th>Email</th>
+                      <th>Status</th>
+                      <th>Poslednja prijava</th>
+                      <th>Broj dokumenata</th>
+                      <th>Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTable">
+                    <tr>
+                      <td colspan="7" class="text-center">
+                        <div class="spinner-border" role="status">
+                          <span class="visually-hidden">Učitava...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
+        <!-- End Users Tab -->
+
+        <!-- Stats Tab -->
+        <div class="tab-pane fade" id="stats" role="tabpanel">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">Dokumenti po tipovima</h5>
+                  <canvas id="documentTypesChart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">
+                    Upload aktivnost (poslednih 7 dana)
+                  </h5>
+                  <canvas id="uploadActivityChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- End Stats Tab -->
       </div>
+      <!-- End Tab Content -->
     </div>
 
     <!-- Image Preview Modal -->
@@ -197,6 +413,175 @@
               📥 Download
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Dodaj novog korisnika</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <form id="addUserForm">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="userUsername" class="form-label"
+                  >Korisničko ime *</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="userUsername"
+                  required
+                />
+                <div class="form-text">
+                  Korisničko ime mora biti jedinstveno
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="userEmail" class="form-label">Email adresa</label>
+                <input type="email" class="form-control" id="userEmail" />
+              </div>
+              <div class="mb-3">
+                <label for="userPassword" class="form-label">Lozinka *</label>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="userPassword"
+                  required
+                />
+                <div class="form-text">Minimalno 6 karaktera</div>
+              </div>
+              <div class="mb-3">
+                <label for="userCompany" class="form-label">Naziv firme</label>
+                <input type="text" class="form-control" id="userCompany" />
+              </div>
+              <div class="mb-3">
+                <label for="userPhone" class="form-label">Telefon</label>
+                <input type="text" class="form-control" id="userPhone" />
+              </div>
+              <div class="mb-3">
+                <label for="userNotes" class="form-label">Napomene</label>
+                <textarea
+                  class="form-control"
+                  id="userNotes"
+                  rows="3"
+                ></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Otkaži
+              </button>
+              <button type="submit" class="btn btn-success">
+                Dodaj korisnika
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Uredi korisnika</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <form id="editUserForm">
+            <div class="modal-body">
+              <input type="hidden" id="editUserId" />
+              <div class="mb-3">
+                <label for="editUserUsername" class="form-label"
+                  >Korisničko ime *</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="editUserUsername"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="editUserEmail" class="form-label"
+                  >Email adresa *</label
+                >
+                <input
+                  type="email"
+                  class="form-control"
+                  id="editUserEmail"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="editUserPassword" class="form-label"
+                  >Nova lozinka</label
+                >
+                <input
+                  type="password"
+                  class="form-control"
+                  id="editUserPassword"
+                />
+                <div class="form-text">
+                  Ostavite prazno ako ne želite da menjate lozinku
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="editUserCompany" class="form-label"
+                  >Naziv firme</label
+                >
+                <input type="text" class="form-control" id="editUserCompany" />
+              </div>
+              <div class="mb-3">
+                <label for="editUserPhone" class="form-label">Telefon</label>
+                <input type="text" class="form-control" id="editUserPhone" />
+              </div>
+              <div class="mb-3">
+                <label for="editUserStatus" class="form-label">Status</label>
+                <select class="form-select" id="editUserStatus">
+                  <option value="active">Aktivan</option>
+                  <option value="inactive">Neaktivan</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="editUserNotes" class="form-label">Napomene</label>
+                <textarea
+                  class="form-control"
+                  id="editUserNotes"
+                  rows="3"
+                ></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Otkaži
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Sačuvaj izmene
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
