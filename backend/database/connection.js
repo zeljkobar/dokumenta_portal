@@ -11,8 +11,9 @@ const dbConfig = {
   timezone: "+00:00",
   multipleStatements: true,
   connectionLimit: 10,
-  acquireTimeout: 60000,
-  timeout: 60000,
+  connectTimeout: 10000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 };
 
 // Create connection pool
@@ -32,11 +33,23 @@ async function testConnection() {
 }
 
 // Execute query with error handling
-async function query(sql, params = []) {
+function isTransientDbError(error) {
+  return ["ECONNRESET", "ETIMEDOUT", "PROTOCOL_CONNECTION_LOST"].includes(
+    error && error.code
+  );
+}
+
+async function query(sql, params = [], attempt = 1) {
   try {
     const [results] = await pool.execute(sql, params);
     return results;
   } catch (error) {
+    if (attempt === 1 && isTransientDbError(error)) {
+      console.warn("Transient database error, retrying query:", error.code);
+      const [results] = await pool.execute(sql, params);
+      return results;
+    }
+
     console.error("Database query error:", error);
     throw error;
   }

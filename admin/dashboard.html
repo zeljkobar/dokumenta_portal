@@ -216,11 +216,9 @@
                 <div class="col-md-3">
                   <select class="form-select" id="filterType">
                     <option value="">Svi tipovi</option>
-                    <option value="racun">Računi</option>
-                    <option value="ugovor">Ugovori</option>
+                    <option value="ulazni">Ulazni dokumenti</option>
+                    <option value="izlazni">Izlazni dokumenti</option>
                     <option value="izvod">Izvodi</option>
-                    <option value="potvrda">Potvrde</option>
-                    <option value="ostalo">Ostalo</option>
                   </select>
                 </div>
                 <div class="col-md-3">
@@ -228,10 +226,23 @@
                     <option value="">Svi korisnici</option>
                   </select>
                 </div>
-                <div class="col-md-3">
-                  <input type="date" class="form-control" id="filterDate" />
+                <div class="col-md-2">
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="filterDateFrom"
+                    title="Datum od"
+                  />
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="filterDateTo"
+                    title="Datum do"
+                  />
+                </div>
+                <div class="col-md-2">
                   <button class="btn btn-primary" onclick="loadDocuments()">
                     🔍 Filtriraj
                   </button>
@@ -258,6 +269,14 @@
                     disabled
                   >
                     📥 Download Selected
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-danger me-2"
+                    id="deleteSelectedBtn"
+                    disabled
+                  >
+                    🗑️ Delete Selected
                   </button>
                   <button
                     type="button"

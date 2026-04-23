@@ -1,5 +1,7 @@
 // Auth utility functions
-const API_BASE = "/api";
+const API_BASE =
+  window.location.protocol === "file:" ? "http://localhost:3001/api" : "/api";
+const REQUEST_TIMEOUT_MS = 10000;
 
 class Auth {
   static getToken() {
@@ -46,15 +48,33 @@ class Auth {
   }
 
   static async login(username, password, adminId = 2) {
-    const response = await fetch(`${API_BASE}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password, adminId }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const data = await response.json();
+    let response;
+
+    try {
+      response = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password, adminId }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error.name === "AbortError"
+            ? "Login traje predugo. Provjerite konekciju sa bazom i pokušajte ponovo."
+            : "Backend nije dostupan. Pokrenite backend i otvorite http://localhost:3001/",
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
       this.setToken(data.token);
@@ -62,7 +82,12 @@ class Auth {
       localStorage.setItem("documentaUser", JSON.stringify(data.user));
       return { success: true };
     } else {
-      return { success: false, error: data.error };
+      return {
+        success: false,
+        error:
+          data.error ||
+          `Greška prilikom prijave (HTTP ${response.status})`,
+      };
     }
   }
 

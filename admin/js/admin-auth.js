@@ -1,5 +1,6 @@
 // Admin Auth utility functions
-const API_BASE = "/api";
+const API_BASE =
+  window.location.protocol === "file:" ? "http://localhost:3001/api" : "/api";
 
 class AdminAuth {
   static getToken() {
@@ -39,21 +40,36 @@ class AdminAuth {
   }
 
   static async login(username, password) {
-    const response = await fetch(`${API_BASE}/admin/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    let response;
 
-    const data = await response.json();
+    try {
+      response = await fetch(`${API_BASE}/admin/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          "Backend nije dostupan. Pokrenite backend i otvorite http://localhost:3001/admin",
+      };
+    }
+
+    const data = await response.json().catch(() => ({}));
 
     if (response.ok) {
       this.setToken(data.token);
       return { success: true };
     } else {
-      return { success: false, error: data.error };
+      return {
+        success: false,
+        error:
+          data.error ||
+          `Greška prilikom prijave (HTTP ${response.status})`,
+      };
     }
   }
 

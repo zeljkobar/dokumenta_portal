@@ -22,6 +22,11 @@ document.addEventListener("DOMContentLoaded", function () {
     loadUsers();
   });
 
+  // Apply document filters as soon as they change.
+  ["filterType", "filterUser", "filterDateFrom", "filterDateTo"].forEach((filterId) => {
+    document.getElementById(filterId).addEventListener("change", loadDocuments);
+  });
+
   // Setup form handlers
   setupUserManagement();
 });
@@ -299,7 +304,8 @@ async function loadDocuments() {
     const filters = {
       type: document.getElementById("filterType").value,
       user: document.getElementById("filterUser").value,
-      date: document.getElementById("filterDate").value,
+      dateFrom: document.getElementById("filterDateFrom").value,
+      dateTo: document.getElementById("filterDateTo").value,
     };
 
     const queryParams = new URLSearchParams();
@@ -346,16 +352,7 @@ function displayDocuments(documents) {
                   doc.id
                 }" data-filename="${doc.filename}">
             </td>
-            <td>
-                <img src="${API_BASE}/files/${doc.filename || doc.file_name}" 
-                     class="document-thumbnail" 
-                     alt="Thumbnail"
-                     onclick="showImagePreview('${
-                       doc.filename || doc.file_name
-                     }', '${
-        doc.original_name || doc.originalName || doc.filename || doc.file_name
-      }')">
-            </td>
+            <td>${getDocumentPreview(doc)}</td>
             <td>
                 <strong>${
                   doc.original_name ||
@@ -415,6 +412,30 @@ function displayDocuments(documents) {
     .join("");
 }
 
+function getDocumentPreview(doc) {
+  const filename = doc.filename || doc.file_name;
+  const originalName = doc.original_name || doc.originalName || filename;
+
+  if (filename && filename.toLowerCase().endsWith(".pdf")) {
+    return `
+      <button class="btn btn-sm btn-outline-danger" onclick="previewDocument('${filename}')">
+        📄 PDF
+      </button>
+    `;
+  }
+
+  return `
+    <img src="${API_BASE}/files/${filename}"
+         class="document-thumbnail"
+         alt="Thumbnail"
+         onclick="showImagePreview('${filename}', '${originalName}')">
+  `;
+}
+
+function previewDocument(filename) {
+  window.open(`${API_BASE}/files/${filename}`, "_blank", "noopener");
+}
+
 function showImagePreview(filename, originalName) {
   const modal = new bootstrap.Modal(document.getElementById("imageModal"));
   document.getElementById("imageModalTitle").textContent =
@@ -472,17 +493,16 @@ async function deleteDocument(id, filename) {
 function clearFilters() {
   document.getElementById("filterType").value = "";
   document.getElementById("filterUser").value = "";
-  document.getElementById("filterDate").value = "";
+  document.getElementById("filterDateFrom").value = "";
+  document.getElementById("filterDateTo").value = "";
   loadDocuments();
 }
 
 function getDocumentTypeLabel(type) {
   const labels = {
-    racun: "Račun",
-    ugovor: "Ugovor",
+    ulazni: "Ulazni dokumenti",
+    izlazni: "Izlazni dokumenti",
     izvod: "Izvod",
-    potvrda: "Potvrda",
-    ostalo: "Ostalo",
   };
   return labels[type] || type;
 }
@@ -536,6 +556,11 @@ document.addEventListener("DOMContentLoaded", function () {
     .getElementById("downloadSelectedBtn")
     .addEventListener("click", downloadSelected);
 
+  // Delete selected button
+  document
+    .getElementById("deleteSelectedBtn")
+    .addEventListener("click", deleteSelected);
+
   // Download all button
   document
     .getElementById("downloadAllBtn")
@@ -545,9 +570,12 @@ document.addEventListener("DOMContentLoaded", function () {
 function updateDownloadButtons() {
   const checkedBoxes = document.querySelectorAll(".document-checkbox:checked");
   const downloadSelectedBtn = document.getElementById("downloadSelectedBtn");
+  const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
 
   downloadSelectedBtn.disabled = checkedBoxes.length === 0;
+  deleteSelectedBtn.disabled = checkedBoxes.length === 0;
   downloadSelectedBtn.textContent = `📥 Download Selected (${checkedBoxes.length})`;
+  deleteSelectedBtn.textContent = `🗑️ Delete Selected (${checkedBoxes.length})`;
 }
 
 async function downloadSelected() {
@@ -563,6 +591,62 @@ async function downloadSelected() {
 
     await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay between downloads
     downloadDocument(filename, originalName);
+  }
+}
+
+async function deleteSelected() {
+  const checkedBoxes = Array.from(
+    document.querySelectorAll(".document-checkbox:checked")
+  );
+
+  if (checkedBoxes.length === 0) return;
+
+  if (
+    !confirm(
+      `Da li ste sigurni da želite da obrišete ${checkedBoxes.length} izabranih dokumenata?`
+    )
+  ) {
+    return;
+  }
+
+  const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+  deleteSelectedBtn.disabled = true;
+  deleteSelectedBtn.textContent = "🗑️ Brisanje...";
+
+  let deletedCount = 0;
+  let failedCount = 0;
+
+  for (const checkbox of checkedBoxes) {
+    try {
+      const response = await fetch(
+        `${API_BASE}/admin/documents/${checkbox.value}`,
+        {
+          method: "DELETE",
+          headers: AdminAuth.getAuthHeaders(),
+        }
+      );
+
+      if (response.ok) {
+        deletedCount++;
+      } else {
+        failedCount++;
+      }
+    } catch (error) {
+      console.error("Error deleting selected document:", error);
+      failedCount++;
+    }
+  }
+
+  await loadDocuments();
+  await loadStats();
+  updateDownloadButtons();
+
+  if (failedCount > 0) {
+    alert(
+      `Obrisano: ${deletedCount}. Nije obrisano: ${failedCount}. Provjerite listu dokumenata.`
+    );
+  } else {
+    alert(`Obrisano ${deletedCount} dokumenata.`);
   }
 }
 

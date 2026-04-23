@@ -162,30 +162,32 @@ async function uploadDocument() {
 
   try {
     const comment = document.getElementById("comment").value;
+    const formData = new FormData();
 
-    // For now, upload each image separately
-    // In production, you might want to combine them into a single document
     for (let i = 0; i < capturedImages.length; i++) {
-      const formData = new FormData();
       formData.append(
-        "file",
+        "files",
         capturedImages[i].blob,
         `${documentType}_strana_${i + 1}.jpg`
       );
-      formData.append("documentType", documentType);
-      formData.append("comment", comment);
-      formData.append("pageNumber", i + 1);
-      formData.append("totalPages", capturedImages.length);
+    }
 
-      const response = await fetch(`${API_BASE}/upload`, {
-        method: "POST",
-        headers: Auth.getAuthHeaders(false), // Don't include Content-Type for FormData
-        body: formData,
-      });
+    formData.append("documentType", documentType);
+    formData.append("documentSubtype", "ostalo");
+    formData.append("userComment", comment);
+    formData.append(
+      "originalName",
+      `${documentType}_${capturedImages.length}_strane.pdf`
+    );
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
+    const response = await fetch(`${API_BASE}/upload`, {
+      method: "POST",
+      headers: Auth.getAuthHeaders(false), // Don't include Content-Type for FormData
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Upload failed");
     }
 
     // Success - redirect to dashboard

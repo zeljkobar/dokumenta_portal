@@ -102,7 +102,7 @@ class DocumentDAO {
     }
 
     if (filters.dateTo) {
-      sql += " AND d.upload_date <= ?";
+      sql += " AND d.upload_date < DATE_ADD(?, INTERVAL 1 DAY)";
       params.push(filters.dateTo);
     }
 

@@ -186,37 +186,155 @@ app.post("/api/admin/login", async (req, res) => {
 // FILE PROCESSING
 // ============================================================================
 
-async function processFile(buffer, filename, documentType, mimetype) {
+function buildPdfFromJpegs(pages) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 24;
+  const objects = [];
+
+  const addObject = (id, content) => {
+    objects.push({
+      id,
+      content: Buffer.isBuffer(content) ? content : Buffer.from(content),
+    });
+  };
+
+  const pageObjectIds = pages.map((_, index) => 5 + index * 3);
+
+  addObject(1, "<< /Type /Catalog /Pages 2 0 R >>\n");
+  addObject(
+    2,
+    `<< /Type /Pages /Kids [${pageObjectIds
+      .map((id) => `${id} 0 R`)
+      .join(" ")}] /Count ${pages.length} >>\n`
+  );
+
+  pages.forEach((page, index) => {
+    const imageId = 3 + index * 3;
+    const contentId = 4 + index * 3;
+    const pageId = 5 + index * 3;
+    const imageName = `Im${index + 1}`;
+    const scale = Math.min(
+      (pageWidth - margin * 2) / page.width,
+      (pageHeight - margin * 2) / page.height
+    );
+    const drawWidth = page.width * scale;
+    const drawHeight = page.height * scale;
+    const x = (pageWidth - drawWidth) / 2;
+    const y = (pageHeight - drawHeight) / 2;
+    const content = Buffer.from(
+      `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${x.toFixed(
+        2
+      )} ${y.toFixed(2)} cm\n/${imageName} Do\nQ\n`
+    );
+
+    addObject(
+      imageId,
+      Buffer.concat([
+        Buffer.from(
+          `<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.buffer.length} >>\nstream\n`
+        ),
+        page.buffer,
+        Buffer.from("\nendstream\n"),
+      ])
+    );
+    addObject(
+      contentId,
+      Buffer.concat([
+        Buffer.from(`<< /Length ${content.length} >>\nstream\n`),
+        content,
+        Buffer.from("endstream\n"),
+      ])
+    );
+    addObject(
+      pageId,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /${imageName} ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>\n`
+    );
+  });
+
+  const chunks = [Buffer.from("%PDF-1.4\n")];
+  const offsets = [0];
+
+  objects
+    .sort((a, b) => a.id - b.id)
+    .forEach((object) => {
+      offsets[object.id] = Buffer.concat(chunks).length;
+      chunks.push(Buffer.from(`${object.id} 0 obj\n`));
+      chunks.push(object.content);
+      chunks.push(Buffer.from("endobj\n"));
+    });
+
+  const xrefOffset = Buffer.concat(chunks).length;
+  const maxObjectId = Math.max(...objects.map((object) => object.id));
+  const xref = [
+    "xref",
+    `0 ${maxObjectId + 1}`,
+    "0000000000 65535 f ",
+  ];
+
+  for (let id = 1; id <= maxObjectId; id++) {
+    xref.push(`${String(offsets[id]).padStart(10, "0")} 00000 n `);
+  }
+
+  chunks.push(
+    Buffer.from(
+      `${xref.join("\n")}\ntrailer\n<< /Size ${
+        maxObjectId + 1
+      } /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`
+    )
+  );
+
+  return Buffer.concat(chunks);
+}
+
+async function createPdfFromImages(files) {
+  const pages = [];
+
+  for (const file of files) {
+    const processed = await sharp(file.buffer)
+      .rotate()
+      .resize(1920, 1920, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: 80,
+        progressive: true,
+      })
+      .toBuffer({ resolveWithObject: true });
+
+    pages.push({
+      buffer: processed.data,
+      width: processed.info.width,
+      height: processed.info.height,
+    });
+  }
+
+  return buildPdfFromJpegs(pages);
+}
+
+async function processFiles(files, documentType) {
   try {
     const timestamp = Date.now();
     const randomSuffix = Math.round(Math.random() * 1e9);
+    const originalSize = files.reduce((total, file) => total + file.size, 0);
+    const hasImages = files.some((file) => file.mimetype.startsWith("image/"));
+    const hasPdfs = files.some((file) => file.mimetype === "application/pdf");
 
-    let processedFilename;
+    if (hasImages && hasPdfs) {
+      throw new Error("Images and PDFs cannot be combined in one upload");
+    }
+
     let processedBuffer;
-    let outputPath;
+    const processedFilename = `${documentType}_${timestamp}_${randomSuffix}.pdf`;
+    const outputPath = path.join(__dirname, "uploads", processedFilename);
 
-    if (mimetype.startsWith("image/")) {
-      processedFilename = `${documentType}_${timestamp}_${randomSuffix}.jpg`;
-      outputPath = path.join(__dirname, "uploads", processedFilename);
-
-      processedBuffer = await sharp(buffer)
-        .resize(1920, 1080, {
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .jpeg({
-          quality: 80,
-          progressive: true,
-        })
-        .rotate()
-        .toBuffer();
-    } else if (mimetype === "application/pdf") {
-      const fileExtension = path.extname(filename) || ".pdf";
-      processedFilename = `${documentType}_${timestamp}_${randomSuffix}${fileExtension}`;
-      outputPath = path.join(__dirname, "uploads", processedFilename);
-      processedBuffer = buffer;
+    if (hasImages) {
+      processedBuffer = await createPdfFromImages(files);
+    } else if (hasPdfs && files.length === 1) {
+      processedBuffer = files[0].buffer;
     } else {
-      throw new Error("Unsupported file type");
+      throw new Error("Unsupported file upload");
     }
 
     await fs.writeFile(outputPath, processedBuffer);
@@ -226,8 +344,10 @@ async function processFile(buffer, filename, documentType, mimetype) {
       filename: processedFilename,
       path: outputPath,
       size: stats.size,
-      originalSize: buffer.length,
-      compressionRatio: Math.round((1 - stats.size / buffer.length) * 100),
+      originalSize,
+      mimeType: "application/pdf",
+      pageCount: hasImages ? files.length : 1,
+      compressionRatio: Math.round((1 - stats.size / originalSize) * 100),
     };
   } catch (error) {
     console.error("File processing error:", error);
@@ -243,14 +363,17 @@ async function processFile(buffer, filename, documentType, mimetype) {
 app.post(
   "/api/upload",
   authenticateToken,
-  upload.single("file"),
+  upload.any(),
   async (req, res) => {
-    if (!req.file) {
+    const files = req.files || [];
+
+    if (files.length === 0) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     try {
-      const { documentType, documentSubtype, userComment } = req.body;
+      const { documentType, documentSubtype } = req.body;
+      const userComment = req.body.userComment || req.body.comment || null;
 
       if (!documentType) {
         return res.status(400).json({ error: "Document type is required" });
@@ -259,19 +382,24 @@ app.post(
       // Get user info for company name
       const user = await UserDAO.getById(req.user.id);
 
-      const processedFile = await processFile(
-        req.file.buffer,
-        req.file.originalname,
-        documentType,
-        req.file.mimetype
+      const hasImages = files.some((file) =>
+        file.mimetype.startsWith("image/")
       );
+      const processedFile = await processFiles(files, documentType);
+      const originalName =
+        req.body.originalName ||
+        (files.length === 1
+          ? hasImages
+            ? `${path.parse(files[0].originalname).name}.pdf`
+            : files[0].originalname
+          : `${documentType}_${files.length}_strane.pdf`);
 
       const documentData = {
         userId: req.user.id,
         filename: processedFile.filename,
-        originalName: req.file.originalname,
+        originalName,
         filePath: processedFile.path,
-        mimeType: req.file.mimetype,
+        mimeType: processedFile.mimeType,
         originalSize: processedFile.originalSize,
         compressedSize: processedFile.size,
         compressionRatio: processedFile.compressionRatio,
@@ -292,7 +420,7 @@ app.post(
         documentId,
         "general",
         "Dokument upload-ovan",
-        `Dokument "${req.file.originalname}" je uspešno upload-ovan i čeka review.`
+        `Dokument "${originalName}" je uspešno upload-ovan i čeka review.`
       );
 
       res.json({
