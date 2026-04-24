@@ -6,18 +6,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  // Display user welcome message
-  const user = Auth.getUser();
-  const welcomeText = user.fullName
-    ? `Pozdrav, ${user.fullName}!`
-    : `Pozdrav, ${user.username}!`;
-  document.getElementById("userWelcome").textContent = welcomeText;
-
-  if (user.companyName) {
-    document.getElementById(
-      "userWelcome"
-    ).textContent += ` (${user.companyName})`;
-  }
+  // Display cached user immediately, then refresh from the database.
+  renderUserWelcome(Auth.getUser());
+  Auth.refreshUser()
+    .then(renderUserWelcome)
+    .catch((error) => {
+      console.error("Error refreshing user profile:", error);
+    });
 
   // Load initial data
   loadNotifications();
@@ -31,6 +26,21 @@ document.addEventListener("DOMContentLoaded", function () {
   // Setup auto-refresh for notifications
   setInterval(loadNotifications, 30000); // Check every 30 seconds
 });
+
+function renderUserWelcome(user) {
+  if (!user) return;
+
+  const welcomeText = user.fullName
+    ? `Pozdrav, ${user.fullName}!`
+    : `Pozdrav, ${user.username}!`;
+  document.getElementById("userWelcome").textContent = welcomeText;
+
+  if (user.companyName) {
+    document.getElementById(
+      "userWelcome"
+    ).textContent += ` (${user.companyName})`;
+  }
+}
 
 function startUpload(tipDokumenta) {
   // Store document type and redirect to camera page

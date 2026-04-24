@@ -47,6 +47,24 @@ class Auth {
     }
   }
 
+  static setUser(user) {
+    localStorage.setItem("documentaUser", JSON.stringify(user));
+  }
+
+  static async refreshUser() {
+    const response = await fetch(`${API_BASE}/me`, {
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to refresh user");
+    }
+
+    const user = await response.json();
+    this.setUser(user);
+    return user;
+  }
+
   static async login(username, password, adminId = 2) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -79,7 +97,7 @@ class Auth {
     if (response.ok) {
       this.setToken(data.token);
       // Store user info
-      localStorage.setItem("documentaUser", JSON.stringify(data.user));
+      this.setUser(data.user);
       return { success: true };
     } else {
       return {

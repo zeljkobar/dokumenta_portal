@@ -359,6 +359,31 @@ async function processFiles(files, documentType) {
 // USER API ROUTES
 // ============================================================================
 
+// Get current user profile
+app.get("/api/me", authenticateToken, async (req, res) => {
+  try {
+    const user = await UserDAO.getById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      fullName: user.full_name,
+      companyName: user.company_name,
+      phone: user.phone,
+      pib: user.pib,
+      role: "user",
+    });
+  } catch (error) {
+    console.error("Error getting current user:", error);
+    res.status(500).json({ error: "Failed to get current user" });
+  }
+});
+
 // Upload document
 app.post(
   "/api/upload",
