@@ -1,4 +1,6 @@
 // Admin dashboard functionality
+let adminUsersCache = [];
+
 document.addEventListener("DOMContentLoaded", function () {
   // Check if admin is logged in
   if (!AdminAuth.isLoggedIn()) {
@@ -145,23 +147,20 @@ async function updateUser() {
 }
 
 function editUser(userId) {
-  // Find user data from current table
-  const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
-  if (!userRow) return;
-
-  const cells = userRow.cells;
+  const user = adminUsersCache.find((item) => Number(item.id) === Number(userId));
+  if (!user) return;
 
   // Populate edit form
   document.getElementById("editUserId").value = userId;
-  document.getElementById("editUserUsername").value = cells[1].textContent;
-  document.getElementById("editUserEmail").value = cells[2].textContent;
+  document.getElementById("editUserUsername").value = user.username || "";
+  document.getElementById("editUserEmail").value = user.email || "";
   document.getElementById("editUserPassword").value = "";
-  document.getElementById("editUserCompany").value =
-    cells[6]?.textContent || "";
-  document.getElementById("editUserPhone").value = cells[7]?.textContent || "";
-  document.getElementById("editUserStatus").value =
-    cells[3].textContent.toLowerCase();
-  document.getElementById("editUserNotes").value = "";
+  document.getElementById("editUserFullName").value = user.full_name || "";
+  document.getElementById("editUserCompanyName").value = user.company_name || "";
+  document.getElementById("editUserPhone").value = user.phone || "";
+  document.getElementById("editUserPib").value = user.pib || "";
+  document.getElementById("editUserStatus").value = user.status || "active";
+  document.getElementById("editUserNotes").value = user.notes || "";
 
   // Show modal
   const modal = new bootstrap.Modal(document.getElementById("editUserModal"));
@@ -225,6 +224,7 @@ async function loadUsers() {
 
     if (response.ok) {
       const users = await response.json();
+      adminUsersCache = users;
 
       // Update filter dropdown
       const userSelect = document.getElementById("filterUser");

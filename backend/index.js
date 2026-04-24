@@ -588,10 +588,20 @@ app.post("/api/admin/users", authenticateAdmin, async (req, res) => {
 app.put("/api/admin/users/:id", authenticateAdmin, async (req, res) => {
   try {
     const userId = req.params.id;
-    const updates = req.body;
+    const updates = { ...req.body };
 
     delete updates.id;
     delete updates.admin_id;
+
+    if (updates.fullName !== undefined) {
+      updates.full_name = updates.fullName;
+      delete updates.fullName;
+    }
+
+    if (updates.companyName !== undefined) {
+      updates.company_name = updates.companyName;
+      delete updates.companyName;
+    }
 
     if (updates.password) {
       updates.password_hash = updates.password;
