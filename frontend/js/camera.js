@@ -3,32 +3,35 @@ let videoStream = null;
 let capturedImages = [];
 let documentType = "";
 
+const DEFAULT_SCAN_SETTINGS = {
+  filter: "clean",
+  autoCrop: true,
+  rotation: 0,
+};
+
 document.addEventListener("DOMContentLoaded", function () {
-  // Check if user is logged in
   if (!Auth.isLoggedIn()) {
     window.location.href = "index.html";
     return;
   }
 
-  // Get document type from localStorage
   documentType = localStorage.getItem("selectedDocumentType") || "ostalo";
 
-  // Set title based on document type
   const titles = {
-    racun: "Slikanje računa",
-    ugovor: "Slikanje ugovora",
+    ulazni: "Slikanje ulaznog dokumenta",
+    izlazni: "Slikanje izlaznog dokumenta",
     izvod: "Slikanje bankovnog izvoda",
+    racun: "Slikanje racuna",
+    ugovor: "Slikanje ugovora",
     potvrda: "Slikanje potvrde",
     ostalo: "Slikanje dokumenta",
   };
 
   document.getElementById("documentTypeTitle").textContent =
-    titles[documentType];
+    titles[documentType] || titles.ostalo;
 
-  // Initialize camera
   initCamera();
 
-  // Set up capture button
   document
     .getElementById("capture-btn")
     .addEventListener("click", captureImage);
@@ -38,7 +41,7 @@ async function initCamera() {
   try {
     const constraints = {
       video: {
-        facingMode: "environment", // Back camera on mobile
+        facingMode: "environment",
         width: { ideal: 1920 },
         height: { ideal: 1080 },
       },
@@ -50,54 +53,282 @@ async function initCamera() {
   } catch (error) {
     console.error("Error accessing camera:", error);
     showError(
-      "Greška pristupa kameri. Molimo dozvolite pristup kameri i pokušajte ponovo."
+      "Greska pristupa kameri. Molimo dozvolite pristup kameri i pokusajte ponovo."
     );
   }
 }
 
-function captureImage() {
+async function captureImage() {
   const video = document.getElementById("camera-view");
+
+  if (!video.videoWidth || !video.videoHeight) {
+    showError("Kamera jos nije spremna. Pokusajte ponovo za par sekundi.");
+    return;
+  }
+
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
 
-  // Set canvas dimensions to video dimensions
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
-  // Draw video frame to canvas
   context.drawImage(video, 0, 0);
 
-  // Convert to blob
-  canvas.toBlob(
-    function (blob) {
-      const imageUrl = URL.createObjectURL(blob);
-      capturedImages.push({
-        blob: blob,
-        url: imageUrl,
-        timestamp: Date.now(),
-      });
+  try {
+    const originalBlob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+    const image = await createCapturedImage(originalBlob);
+    capturedImages.push(image);
+    showPreview();
+  } catch (error) {
+    console.error("Capture processing error:", error);
+    showError("Slika nije obradjena. Pokusajte ponovo.");
+  }
+}
 
-      // Show preview section
-      showPreview();
-    },
-    "image/jpeg",
-    0.8
-  ); // 80% quality
+async function createCapturedImage(originalBlob) {
+  const image = {
+    originalBlob,
+    originalUrl: URL.createObjectURL(originalBlob),
+    blob: originalBlob,
+    url: "",
+    settings: { ...DEFAULT_SCAN_SETTINGS },
+    cropDetected: false,
+    timestamp: Date.now(),
+  };
+
+  await reprocessImage(image);
+  return image;
+}
+
+async function reprocessImage(image) {
+  const result = await processDocumentImage(image.originalBlob, image.settings);
+
+  if (image.url) {
+    URL.revokeObjectURL(image.url);
+  }
+
+  image.blob = result.blob;
+  image.url = URL.createObjectURL(result.blob);
+  image.cropDetected = result.cropDetected;
+}
+
+async function processDocumentImage(blob, settings) {
+  const sourceImage = await loadImageFromBlob(blob);
+  const sourceCanvas = document.createElement("canvas");
+  const sourceContext = sourceCanvas.getContext("2d", {
+    willReadFrequently: true,
+  });
+
+  sourceCanvas.width = sourceImage.naturalWidth;
+  sourceCanvas.height = sourceImage.naturalHeight;
+  sourceContext.drawImage(sourceImage, 0, 0);
+
+  const bounds = settings.autoCrop
+    ? detectDocumentBounds(sourceCanvas)
+    : null;
+
+  const crop = bounds || {
+    x: 0,
+    y: 0,
+    width: sourceCanvas.width,
+    height: sourceCanvas.height,
+  };
+
+  const rotated = rotateAndCropCanvas(sourceCanvas, crop, settings.rotation);
+  applyScanFilter(rotated, settings.filter);
+
+  return {
+    blob: await canvasToBlob(rotated, "image/jpeg", 0.9),
+    cropDetected: Boolean(bounds),
+  };
+}
+
+function loadImageFromBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(blob);
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image load failed"));
+    };
+
+    image.src = url;
+  });
+}
+
+function detectDocumentBounds(canvas) {
+  const maxScanWidth = 360;
+  const scale = Math.min(1, maxScanWidth / canvas.width);
+  const scanWidth = Math.max(1, Math.round(canvas.width * scale));
+  const scanHeight = Math.max(1, Math.round(canvas.height * scale));
+  const scanCanvas = document.createElement("canvas");
+  const scanContext = scanCanvas.getContext("2d", { willReadFrequently: true });
+
+  scanCanvas.width = scanWidth;
+  scanCanvas.height = scanHeight;
+  scanContext.drawImage(canvas, 0, 0, scanWidth, scanHeight);
+
+  const { data } = scanContext.getImageData(0, 0, scanWidth, scanHeight);
+  let minX = scanWidth;
+  let minY = scanHeight;
+  let maxX = 0;
+  let maxY = 0;
+  let matches = 0;
+
+  for (let y = 0; y < scanHeight; y += 2) {
+    for (let x = 0; x < scanWidth; x += 2) {
+      const offset = (y * scanWidth + x) * 4;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+      const saturation = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+
+      if (luminance > 135 && saturation < 0.42) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+        matches++;
+      }
+    }
+  }
+
+  const area = (maxX - minX) * (maxY - minY);
+  const minArea = scanWidth * scanHeight * 0.18;
+  const maxArea = scanWidth * scanHeight * 0.96;
+
+  if (!matches || area < minArea || area > maxArea) {
+    return null;
+  }
+
+  const padding = Math.round(10 * scale);
+  const x = Math.max(0, Math.round((minX - padding) / scale));
+  const y = Math.max(0, Math.round((minY - padding) / scale));
+  const right = Math.min(canvas.width, Math.round((maxX + padding) / scale));
+  const bottom = Math.min(canvas.height, Math.round((maxY + padding) / scale));
+
+  return {
+    x,
+    y,
+    width: Math.max(1, right - x),
+    height: Math.max(1, bottom - y),
+  };
+}
+
+function rotateAndCropCanvas(sourceCanvas, crop, rotation) {
+  const normalizedRotation = ((rotation % 360) + 360) % 360;
+  const croppedCanvas = document.createElement("canvas");
+  const croppedContext = croppedCanvas.getContext("2d");
+
+  croppedCanvas.width = crop.width;
+  croppedCanvas.height = crop.height;
+  croppedContext.drawImage(
+    sourceCanvas,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
+
+  if (normalizedRotation === 0) {
+    return croppedCanvas;
+  }
+
+  const rotatedCanvas = document.createElement("canvas");
+  const rotatedContext = rotatedCanvas.getContext("2d");
+  const sideways = normalizedRotation === 90 || normalizedRotation === 270;
+
+  rotatedCanvas.width = sideways ? croppedCanvas.height : croppedCanvas.width;
+  rotatedCanvas.height = sideways ? croppedCanvas.width : croppedCanvas.height;
+
+  rotatedContext.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2);
+  rotatedContext.rotate((normalizedRotation * Math.PI) / 180);
+  rotatedContext.drawImage(
+    croppedCanvas,
+    -croppedCanvas.width / 2,
+    -croppedCanvas.height / 2
+  );
+
+  return rotatedCanvas;
+}
+
+function applyScanFilter(canvas, filter) {
+  if (filter === "original") return;
+
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+    if (filter === "bw") {
+      const threshold = 172;
+      gray = gray > threshold ? 255 : 0;
+      data[i] = gray;
+      data[i + 1] = gray;
+      data[i + 2] = gray;
+      continue;
+    }
+
+    if (filter === "contrast") {
+      const contrast = 1.45;
+      data[i] = clamp((r - 128) * contrast + 140);
+      data[i + 1] = clamp((g - 128) * contrast + 140);
+      data[i + 2] = clamp((b - 128) * contrast + 140);
+      continue;
+    }
+
+    const contrast = 1.65;
+    gray = clamp((gray - 128) * contrast + 155);
+    gray = gray > 235 ? 255 : gray;
+    gray = gray < 55 ? 0 : gray;
+    data[i] = gray;
+    data[i + 1] = gray;
+    data[i + 2] = gray;
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
+function clamp(value) {
+  return Math.max(0, Math.min(255, value));
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("Canvas export failed"));
+        }
+      },
+      type,
+      quality
+    );
+  });
 }
 
 function showPreview() {
-  // Hide camera section
   document.getElementById("cameraSection").classList.add("d-none");
-
-  // Show preview section
   document.getElementById("previewSection").classList.remove("d-none");
 
-  // Stop video stream
-  if (videoStream) {
-    videoStream.getTracks().forEach((track) => track.stop());
-  }
-
-  // Update preview container
+  stopCamera();
   updatePreviewContainer();
 }
 
@@ -107,32 +338,103 @@ function updatePreviewContainer() {
 
   capturedImages.forEach((image, index) => {
     const div = document.createElement("div");
-    div.className = "position-relative";
+    div.className = "scan-page";
     div.innerHTML = `
-            <img src="${image.url}" class="document-preview" alt="Strana ${
+      <div class="scan-preview-frame">
+        <img src="${image.url}" class="document-preview" alt="Strana ${
       index + 1
     }">
-            <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1" onclick="removeImage(${index})">
-                ×
-            </button>
-            <div class="text-center mt-1">
-                <small class="text-muted">Strana ${index + 1}</small>
-            </div>
-        `;
+        <button class="btn btn-danger btn-sm scan-remove-btn" onclick="removeImage(${index})" title="Obrisi stranu">
+          x
+        </button>
+      </div>
+      <div class="scan-page-meta">
+        <strong>Strana ${index + 1}</strong>
+        <span class="${image.cropDetected ? "text-success" : "text-muted"}">
+          ${image.cropDetected ? "Papir pronadjen" : "Bez auto crop-a"}
+        </span>
+      </div>
+      <div class="scan-controls">
+        <div class="btn-group btn-group-sm w-100" role="group" aria-label="Filteri">
+          ${filterButton(index, "clean", "Clean", image.settings.filter)}
+          ${filterButton(index, "bw", "B/W", image.settings.filter)}
+          ${filterButton(index, "contrast", "Kontrast", image.settings.filter)}
+          ${filterButton(index, "original", "Original", image.settings.filter)}
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="rotateImage(${index}, -90)">
+            Rotiraj L
+          </button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="rotateImage(${index}, 90)">
+            Rotiraj D
+          </button>
+        </div>
+        <button class="btn btn-sm ${
+          image.settings.autoCrop ? "btn-outline-primary" : "btn-outline-secondary"
+        } w-100 mt-2" onclick="toggleAutoCrop(${index})">
+          ${image.settings.autoCrop ? "Auto crop ukljucen" : "Auto crop iskljucen"}
+        </button>
+      </div>
+    `;
     container.appendChild(div);
   });
 }
 
-function removeImage(index) {
-  // Release object URL
-  URL.revokeObjectURL(capturedImages[index].url);
+function filterButton(index, filter, label, activeFilter) {
+  const activeClass =
+    filter === activeFilter ? "btn-primary" : "btn-outline-primary";
+  return `<button class="btn ${activeClass}" onclick="setImageFilter(${index}, '${filter}')">${label}</button>`;
+}
 
-  // Remove from array
+async function setImageFilter(index, filter) {
+  const image = capturedImages[index];
+  if (!image) return;
+
+  image.settings.filter = filter;
+  await updateImageProcessing(index);
+}
+
+async function rotateImage(index, degrees) {
+  const image = capturedImages[index];
+  if (!image) return;
+
+  image.settings.rotation = (image.settings.rotation + degrees + 360) % 360;
+  await updateImageProcessing(index);
+}
+
+async function toggleAutoCrop(index) {
+  const image = capturedImages[index];
+  if (!image) return;
+
+  image.settings.autoCrop = !image.settings.autoCrop;
+  await updateImageProcessing(index);
+}
+
+async function updateImageProcessing(index) {
+  const container = document.getElementById("previewContainer");
+  container.classList.add("scan-processing");
+
+  try {
+    await reprocessImage(capturedImages[index]);
+    updatePreviewContainer();
+  } catch (error) {
+    console.error("Image processing error:", error);
+    showError("Obrada slike nije uspjela. Probajte drugi filter.");
+  } finally {
+    container.classList.remove("scan-processing");
+  }
+}
+
+function removeImage(index) {
+  const image = capturedImages[index];
+  if (!image) return;
+
+  URL.revokeObjectURL(image.originalUrl);
+  if (image.url) URL.revokeObjectURL(image.url);
+
   capturedImages.splice(index, 1);
 
-  // Update preview
   if (capturedImages.length === 0) {
-    // Go back to camera if no images
     addPage();
   } else {
     updatePreviewContainer();
@@ -140,11 +442,8 @@ function removeImage(index) {
 }
 
 function addPage() {
-  // Show camera section again
   document.getElementById("cameraSection").classList.remove("d-none");
   document.getElementById("previewSection").classList.add("d-none");
-
-  // Restart camera
   initCamera();
 }
 
@@ -154,7 +453,6 @@ async function uploadDocument() {
     return;
   }
 
-  // Show upload modal
   const uploadModal = new bootstrap.Modal(
     document.getElementById("uploadModal")
   );
@@ -182,7 +480,7 @@ async function uploadDocument() {
 
     const response = await fetch(`${API_BASE}/upload`, {
       method: "POST",
-      headers: Auth.getAuthHeaders(false), // Don't include Content-Type for FormData
+      headers: Auth.getAuthHeaders(false),
       body: formData,
     });
 
@@ -190,14 +488,13 @@ async function uploadDocument() {
       throw new Error("Upload failed");
     }
 
-    // Success - redirect to dashboard
     uploadModal.hide();
-    alert("Dokument je uspešno uploadovan!");
+    alert("Dokument je uspesno uploadovan!");
     window.location.href = "dashboard.html";
   } catch (error) {
     console.error("Upload error:", error);
     uploadModal.hide();
-    showError("Greška prilikom uploada. Pokušajte ponovo.");
+    showError("Greska prilikom uploada. Pokusajte ponovo.");
   }
 }
 
@@ -206,20 +503,23 @@ function showError(message) {
   errorAlert.textContent = message;
   errorAlert.classList.remove("d-none");
 
-  // Auto-hide after 5 seconds
   setTimeout(() => {
     errorAlert.classList.add("d-none");
   }, 5000);
 }
 
-// Cleanup on page unload
-window.addEventListener("beforeunload", function () {
+function stopCamera() {
   if (videoStream) {
     videoStream.getTracks().forEach((track) => track.stop());
+    videoStream = null;
   }
+}
 
-  // Release object URLs
+window.addEventListener("beforeunload", function () {
+  stopCamera();
+
   capturedImages.forEach((image) => {
-    URL.revokeObjectURL(image.url);
+    URL.revokeObjectURL(image.originalUrl);
+    if (image.url) URL.revokeObjectURL(image.url);
   });
 });
