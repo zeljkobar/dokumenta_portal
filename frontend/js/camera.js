@@ -98,7 +98,7 @@ async function createCapturedImage(originalBlob) {
   return image;
 }
 
-async function createQrImage(originalBlob, qrValue) {
+async function createQrImage(originalBlob, qrValue, qrBounds) {
   const image = {
     originalBlob,
     originalUrl: URL.createObjectURL(originalBlob),
@@ -106,12 +106,14 @@ async function createQrImage(originalBlob, qrValue) {
     url: "",
     settings: {
       filter: "contrast",
-      autoCrop: false,
+      autoCrop: true,
       rotation: 0,
+      qrBounds: qrBounds || null,
     },
     cropDetected: false,
     isQr: true,
     qrValue: qrValue || "",
+    qrBounds: qrBounds || null,
     timestamp: Date.now(),
   };
 
@@ -120,8 +122,9 @@ async function createQrImage(originalBlob, qrValue) {
 }
 
 async function captureQrCode(originalBlob, sourceCanvas) {
-  const qrValue = await decodeQrFromCanvas(sourceCanvas);
-  const qrImage = await createQrImage(originalBlob, qrValue);
+  const qrResult = await decodeQrFromCanvas(sourceCanvas);
+  const qrValue = qrResult.value;
+  const qrImage = await createQrImage(originalBlob, qrValue, qrResult.bounds);
 
   removeExistingQrImage();
   capturedImages.push(qrImage);
@@ -149,18 +152,57 @@ async function captureQrCode(originalBlob, sourceCanvas) {
 
 async function decodeQrFromCanvas(canvas) {
   if (!("BarcodeDetector" in window)) {
-    return "";
+    return { value: "", bounds: null };
   }
 
   try {
     const detector = new BarcodeDetector({ formats: ["qr_code"] });
     const results = await detector.detect(canvas);
     const qrResult = results.find((result) => result.rawValue);
-    return qrResult ? qrResult.rawValue : "";
+    return qrResult
+      ? {
+          value: qrResult.rawValue,
+          bounds: getQrBounds(qrResult, canvas),
+        }
+      : { value: "", bounds: null };
   } catch (error) {
     console.warn("QR decode failed:", error);
-    return "";
+    return { value: "", bounds: null };
   }
+}
+
+function getQrBounds(qrResult, canvas) {
+  if (qrResult.boundingBox) {
+    return expandBounds(
+      {
+        x: qrResult.boundingBox.x,
+        y: qrResult.boundingBox.y,
+        width: qrResult.boundingBox.width,
+        height: qrResult.boundingBox.height,
+      },
+      canvas.width,
+      canvas.height,
+      0.24
+    );
+  }
+
+  if (qrResult.cornerPoints && qrResult.cornerPoints.length) {
+    const xs = qrResult.cornerPoints.map((point) => point.x);
+    const ys = qrResult.cornerPoints.map((point) => point.y);
+    return expandBounds(
+      {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      },
+      canvas.width,
+      canvas.height,
+      0.24
+    );
+  }
+
+  return null;
 }
 
 async function reprocessImage(image) {
@@ -187,7 +229,7 @@ async function processDocumentImage(blob, settings) {
   sourceContext.drawImage(sourceImage, 0, 0);
 
   const bounds = settings.autoCrop
-    ? detectDocumentBounds(sourceCanvas)
+    ? settings.qrBounds || detectDocumentBounds(sourceCanvas)
     : null;
 
   const crop = bounds || {
@@ -238,6 +280,136 @@ function detectDocumentBounds(canvas) {
   scanContext.drawImage(canvas, 0, 0, scanWidth, scanHeight);
 
   const { data } = scanContext.getImageData(0, 0, scanWidth, scanHeight);
+  const mask = new Uint8Array(scanWidth * scanHeight);
+  const centerX = scanWidth / 2;
+  const centerY = scanHeight / 2;
+
+  for (let y = 0; y < scanHeight; y++) {
+    for (let x = 0; x < scanWidth; x++) {
+      const offset = (y * scanWidth + x) * 4;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+      const saturation = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+
+      if (luminance > 118 && saturation < 0.32) {
+        mask[y * scanWidth + x] = 1;
+      }
+    }
+  }
+
+  const visited = new Uint8Array(mask.length);
+  let best = null;
+  const queue = [];
+
+  for (let y = 0; y < scanHeight; y += 2) {
+    for (let x = 0; x < scanWidth; x += 2) {
+      const start = y * scanWidth + x;
+      if (!mask[start] || visited[start]) continue;
+
+      const component = floodFillMask(mask, visited, queue, scanWidth, scanHeight, x, y);
+      const width = component.maxX - component.minX + 1;
+      const height = component.maxY - component.minY + 1;
+      const boxArea = width * height;
+      const fillRatio = component.count / boxArea;
+      const imageArea = scanWidth * scanHeight;
+      const aspectRatio = width / height;
+      const componentCenterX = component.minX + width / 2;
+      const componentCenterY = component.minY + height / 2;
+      const centerDistance =
+        Math.hypot(componentCenterX - centerX, componentCenterY - centerY) /
+        Math.hypot(centerX, centerY);
+
+      if (
+        boxArea < imageArea * 0.08 ||
+        boxArea > imageArea * 0.9 ||
+        fillRatio < 0.22 ||
+        aspectRatio < 0.35 ||
+        aspectRatio > 3.2
+      ) {
+        continue;
+      }
+
+      const score = boxArea * (1 - Math.min(centerDistance, 0.9));
+      if (!best || score > best.score) {
+        best = { ...component, score };
+      }
+    }
+  }
+
+  if (!best) {
+    return detectContentBounds(canvas);
+  }
+
+  const padding = Math.max(10, Math.round(Math.min(best.maxX - best.minX, best.maxY - best.minY) * 0.035));
+  const x = Math.max(0, Math.round((best.minX - padding) / scale));
+  const y = Math.max(0, Math.round((best.minY - padding) / scale));
+  const right = Math.min(canvas.width, Math.round((best.maxX + padding) / scale));
+  const bottom = Math.min(canvas.height, Math.round((best.maxY + padding) / scale));
+
+  return {
+    x,
+    y,
+    width: Math.max(1, right - x),
+    height: Math.max(1, bottom - y),
+  };
+}
+
+function floodFillMask(mask, visited, queue, width, height, startX, startY) {
+  let head = 0;
+  let count = 0;
+  let minX = startX;
+  let minY = startY;
+  let maxX = startX;
+  let maxY = startY;
+
+  queue.length = 0;
+  queue.push([startX, startY]);
+  visited[startY * width + startX] = 1;
+
+  while (head < queue.length) {
+    const [x, y] = queue[head++];
+    count++;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+
+    const neighbors = [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ];
+
+    for (const [nx, ny] of neighbors) {
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+
+      const index = ny * width + nx;
+      if (!mask[index] || visited[index]) continue;
+
+      visited[index] = 1;
+      queue.push([nx, ny]);
+    }
+  }
+
+  return { count, minX, minY, maxX, maxY };
+}
+
+function detectContentBounds(canvas) {
+  const scanCanvas = document.createElement("canvas");
+  const maxScanWidth = 360;
+  const scale = Math.min(1, maxScanWidth / canvas.width);
+  const scanWidth = Math.max(1, Math.round(canvas.width * scale));
+  const scanHeight = Math.max(1, Math.round(canvas.height * scale));
+  const scanContext = scanCanvas.getContext("2d", { willReadFrequently: true });
+
+  scanCanvas.width = scanWidth;
+  scanCanvas.height = scanHeight;
+  scanContext.drawImage(canvas, 0, 0, scanWidth, scanHeight);
+
+  const { data } = scanContext.getImageData(0, 0, scanWidth, scanHeight);
   let minX = scanWidth;
   let minY = scanHeight;
   let maxX = 0;
@@ -251,9 +423,9 @@ function detectDocumentBounds(canvas) {
       const g = data[offset + 1];
       const b = data[offset + 2];
       const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-      const saturation = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+      const contrast = Math.max(r, g, b) - Math.min(r, g, b);
 
-      if (luminance > 135 && saturation < 0.42) {
+      if (luminance < 115 || contrast > 42) {
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x);
@@ -263,19 +435,28 @@ function detectDocumentBounds(canvas) {
     }
   }
 
-  const area = (maxX - minX) * (maxY - minY);
-  const minArea = scanWidth * scanHeight * 0.18;
-  const maxArea = scanWidth * scanHeight * 0.96;
+  if (!matches) return null;
 
-  if (!matches || area < minArea || area > maxArea) {
-    return null;
-  }
+  const padding = Math.round(28 * scale);
+  return expandBounds(
+    {
+      x: Math.round((minX - padding) / scale),
+      y: Math.round((minY - padding) / scale),
+      width: Math.round((maxX - minX + padding * 2) / scale),
+      height: Math.round((maxY - minY + padding * 2) / scale),
+    },
+    canvas.width,
+    canvas.height,
+    0
+  );
+}
 
-  const padding = Math.round(10 * scale);
-  const x = Math.max(0, Math.round((minX - padding) / scale));
-  const y = Math.max(0, Math.round((minY - padding) / scale));
-  const right = Math.min(canvas.width, Math.round((maxX + padding) / scale));
-  const bottom = Math.min(canvas.height, Math.round((maxY + padding) / scale));
+function expandBounds(bounds, maxWidth, maxHeight, ratio) {
+  const padding = Math.round(Math.max(bounds.width, bounds.height) * ratio);
+  const x = Math.max(0, Math.round(bounds.x - padding));
+  const y = Math.max(0, Math.round(bounds.y - padding));
+  const right = Math.min(maxWidth, Math.round(bounds.x + bounds.width + padding));
+  const bottom = Math.min(maxHeight, Math.round(bounds.y + bounds.height + padding));
 
   return {
     x,
