@@ -186,6 +186,52 @@ class AdminUserDAO {
     await query(sql, [id]);
   }
 
+  static async getOneDriveAuth(id) {
+    const sql = `
+      SELECT
+        id, onedrive_access_token, onedrive_refresh_token,
+        onedrive_tenant_id, onedrive_root_folder_id, onedrive_connected_at
+      FROM admin_users
+      WHERE id = ?
+    `;
+    const result = await query(sql, [id]);
+    return result[0] || null;
+  }
+
+  static async updateOneDriveAuth(id, tokenData) {
+    const sql = `
+      UPDATE admin_users
+      SET onedrive_access_token = ?,
+          onedrive_refresh_token = ?,
+          onedrive_tenant_id = ?,
+          onedrive_connected_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    const result = await query(sql, [
+      tokenData.accessToken,
+      tokenData.refreshToken,
+      tokenData.tenantId || null,
+      id,
+    ]);
+    return result.affectedRows > 0;
+  }
+
+  static async updateOneDriveAccessToken(id, accessToken, refreshToken = null) {
+    const fields = ["onedrive_access_token = ?"];
+    const params = [accessToken];
+
+    if (refreshToken) {
+      fields.push("onedrive_refresh_token = ?");
+      params.push(refreshToken);
+    }
+
+    params.push(id);
+    const sql = `UPDATE admin_users SET ${fields.join(", ")} WHERE id = ?`;
+    const result = await query(sql, params);
+    return result.affectedRows > 0;
+  }
+
   // Get all admins (super admin function)
   static async getAll() {
     const sql = `

@@ -1,5 +1,6 @@
 // Admin dashboard functionality
 let adminUsersCache = [];
+let oneDriveConnected = false;
 
 document.addEventListener("DOMContentLoaded", function () {
   // Check if admin is logged in
@@ -17,6 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize dashboard
   loadStats();
   loadUsers();
+  loadOneDriveStatus();
   loadDocuments();
 
   // Setup tab change handlers
@@ -31,7 +33,83 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Setup form handlers
   setupUserManagement();
+  setupOneDriveControls();
 });
+
+function setupOneDriveControls() {
+  const connectBtn = document.getElementById("connectOneDriveBtn");
+  if (!connectBtn) return;
+
+  connectBtn.addEventListener("click", connectOneDrive);
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("onedrive") === "connected") {
+    alert("OneDrive je povezan.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (params.get("onedrive") === "error") {
+    alert(`OneDrive povezivanje nije uspjelo: ${params.get("message") || ""}`);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
+async function loadOneDriveStatus() {
+  try {
+    const response = await fetch(`${API_BASE}/admin/onedrive/status`, {
+      headers: AdminAuth.getAuthHeaders(),
+    });
+    const status = await response.json();
+
+    oneDriveConnected = Boolean(status.connected);
+    renderOneDriveStatus(status);
+    loadDocuments();
+  } catch (error) {
+    console.error("Error loading OneDrive status:", error);
+    renderOneDriveStatus({ configured: false, connected: false });
+  }
+}
+
+function renderOneDriveStatus(status) {
+  const badge = document.getElementById("oneDriveStatusBadge");
+  const button = document.getElementById("connectOneDriveBtn");
+  if (!badge || !button) return;
+
+  if (!status.configured) {
+    badge.textContent = "OneDrive nije konfigurisan";
+    badge.className = "badge bg-warning text-dark align-self-center";
+    button.disabled = true;
+    return;
+  }
+
+  if (status.connected) {
+    badge.textContent = "OneDrive povezan";
+    badge.className = "badge bg-success align-self-center";
+    button.textContent = "🔄 Reconnect OneDrive";
+  } else {
+    badge.textContent = "OneDrive nije povezan";
+    badge.className = "badge bg-secondary align-self-center";
+    button.textContent = "🔗 Connect OneDrive";
+  }
+
+  button.disabled = false;
+}
+
+async function connectOneDrive() {
+  try {
+    const response = await fetch(`${API_BASE}/admin/onedrive/connect`, {
+      headers: AdminAuth.getAuthHeaders(),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "OneDrive povezivanje nije pokrenuto");
+    }
+
+    window.location.href = data.authUrl;
+  } catch (error) {
+    console.error("OneDrive connect error:", error);
+    alert(error.message || "Greška pri povezivanju OneDrive-a");
+  }
+}
 
 function setupUserManagement() {
   // Add user form
@@ -397,12 +475,18 @@ function displayDocuments(documents) {
                     ? `<span class="badge bg-success">${doc.compressionRatio}%</span>`
                     : "-"
                 }
+                ${getOneDriveSyncBadge(doc)}
             </td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" onclick="downloadDocument('${
                   doc.filename
                 }', '${doc.originalName || doc.filename}')">
                     📥
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="syncDocumentToOneDrive(${
+                  doc.id
+                })" ${oneDriveConnected ? "" : "disabled"}>
+                    ☁️
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument('${
                   doc.id
@@ -414,6 +498,17 @@ function displayDocuments(documents) {
     `
     )
     .join("");
+}
+
+function getOneDriveSyncBadge(doc) {
+  const status = doc.sync_status || "pending";
+  const labels = {
+    pending: '<span class="badge bg-secondary mt-1 d-block">OneDrive: ceka</span>',
+    synced: '<span class="badge bg-success mt-1 d-block">OneDrive: synced</span>',
+    failed: '<span class="badge bg-danger mt-1 d-block">OneDrive: greska</span>',
+    skipped: '<span class="badge bg-warning text-dark mt-1 d-block">OneDrive: skipped</span>',
+  };
+  return labels[status] || labels.pending;
 }
 
 function getFiscalizationLink(url) {
@@ -565,6 +660,40 @@ async function deleteDocument(id, filename) {
   } catch (error) {
     console.error("Error deleting document:", error);
     alert("Greška mreže prilikom brisanja dokumenta");
+  }
+}
+
+async function syncDocumentToOneDrive(documentId) {
+  if (!oneDriveConnected) {
+    alert("Prvo povežite OneDrive.");
+    return;
+  }
+
+  if (!confirm("Sinhronizovati ovaj dokument na OneDrive?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/documents/${documentId}/sync-onedrive`,
+      {
+        method: "POST",
+        headers: AdminAuth.getAuthHeaders(),
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "OneDrive sync nije uspio");
+    }
+
+    alert("Dokument je poslat na OneDrive.");
+    await loadDocuments();
+    await loadStats();
+  } catch (error) {
+    console.error("OneDrive sync error:", error);
+    alert(error.message || "Greška pri OneDrive sync-u");
+    await loadDocuments();
   }
 }
 

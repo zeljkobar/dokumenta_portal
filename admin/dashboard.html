@@ -271,10 +271,23 @@
                 class="d-flex justify-content-between align-items-center mb-3"
               >
                 <h5 class="card-title mb-0">Uploadovani dokumenti</h5>
-                <div>
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
                   <button
                     type="button"
-                    class="btn btn-success me-2"
+                    class="btn btn-outline-dark"
+                    id="connectOneDriveBtn"
+                  >
+                    🔗 Connect OneDrive
+                  </button>
+                  <span
+                    class="badge bg-secondary align-self-center"
+                    id="oneDriveStatusBadge"
+                  >
+                    OneDrive nije povezan
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-success"
                     id="downloadSelectedBtn"
                     disabled
                   >
@@ -282,7 +295,7 @@
                   </button>
                   <button
                     type="button"
-                    class="btn btn-info me-2"
+                    class="btn btn-info"
                     id="downloadSelectedLinksBtn"
                     disabled
                   >
@@ -290,7 +303,7 @@
                   </button>
                   <button
                     type="button"
-                    class="btn btn-danger me-2"
+                    class="btn btn-danger"
                     id="deleteSelectedBtn"
                     disabled
                   >
