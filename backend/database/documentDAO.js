@@ -16,27 +16,17 @@ class DocumentDAO {
     const uploadDate = new Date();
     const suggestedYear = uploadDate.getFullYear();
     const suggestedMonth = uploadDate.getMonth() + 1;
-    const monthNames = [
-      "",
-      "01_januar",
-      "02_februar",
-      "03_mart",
-      "04_april",
-      "05_maj",
-      "06_juni",
-      "07_juli",
-      "08_avgust",
-      "09_septembar",
-      "10_oktobar",
-      "11_novembar",
-      "12_decembar",
-    ];
+    const suggestedMonthFolder = String(suggestedMonth).padStart(2, "0");
+    const documentSubtype = documentData.documentSubtype || "ostalo";
+    const subtypeFolder =
+      documentData.documentType === "ulazni" &&
+      ["gotovina", "kartica"].includes(documentSubtype)
+        ? `${documentSubtype}/`
+        : "";
 
     const suggestedPath = `/Firme/${
       documentData.companyName || "Unknown"
-    }/${suggestedYear}/${documentData.documentType}/${
-      monthNames[suggestedMonth]
-    }/`;
+    }/${suggestedYear}/${documentData.documentType}/${suggestedMonthFolder}/${subtypeFolder}`;
 
     const params = [
       adminId,
@@ -49,7 +39,7 @@ class DocumentDAO {
       documentData.compressedSize || null,
       documentData.compressionRatio || null,
       documentData.documentType,
-      documentData.documentSubtype || "ostalo",
+      documentSubtype,
       documentData.userComment || null,
       documentData.fiscalizationUrl || null,
       suggestedYear,

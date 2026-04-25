@@ -40,19 +40,40 @@
                     <div class="card-body">
                       <h5 class="card-title">� Ulazni dokumenti</h5>
                       <p class="card-text">Računi dobavljača, ulazne fakture</p>
-                      <div class="d-grid gap-2">
-                        <button
-                          class="btn btn-primary"
-                          onclick="startUpload('ulazni')"
-                        >
-                          📷 Slikaj dokument
-                        </button>
-                        <button
-                          class="btn btn-outline-primary"
-                          onclick="uploadFromFile('ulazni')"
-                        >
-                          📁 Upload sa računara
-                        </button>
+                      <div class="upload-subtype-list">
+                        <div class="upload-subtype-row">
+                          <span>Virman</span>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-primary" onclick="startUpload('ulazni', 'virman')">
+                              📷
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="uploadFromFile('ulazni', 'virman')">
+                              📁
+                            </button>
+                          </div>
+                        </div>
+                        <div class="upload-subtype-row">
+                          <span>Gotovina</span>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-primary" onclick="startUpload('ulazni', 'gotovina')">
+                              📷
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="uploadFromFile('ulazni', 'gotovina')">
+                              📁
+                            </button>
+                          </div>
+                        </div>
+                        <div class="upload-subtype-row">
+                          <span>Kartica</span>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-primary" onclick="startUpload('ulazni', 'kartica')">
+                              📷
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="uploadFromFile('ulazni', 'kartica')">
+                              📁
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

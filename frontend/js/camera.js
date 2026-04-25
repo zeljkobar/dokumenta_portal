@@ -2,6 +2,7 @@
 let videoStream = null;
 let capturedImages = [];
 let documentType = "";
+let documentSubtype = "ostalo";
 let captureMode = "document";
 
 const DEFAULT_SCAN_SETTINGS = {
@@ -17,6 +18,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   documentType = localStorage.getItem("selectedDocumentType") || "ostalo";
+  documentSubtype =
+    localStorage.getItem("selectedDocumentSubtype") || "ostalo";
 
   document.getElementById("documentTypeTitle").textContent =
     getDocumentTitle();
@@ -851,7 +854,7 @@ async function uploadDocument() {
       .value.trim();
 
     formData.append("documentType", documentType);
-    formData.append("documentSubtype", "ostalo");
+    formData.append("documentSubtype", documentSubtype);
     formData.append("userComment", comment);
     formData.append("fiscalizationUrl", fiscalizationUrl);
     formData.append(

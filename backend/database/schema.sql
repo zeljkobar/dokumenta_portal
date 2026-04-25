@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS documents (
     compression_ratio DECIMAL(5,2),
 
     document_type ENUM('ulazni', 'izlazni', 'izvod') NOT NULL,
-    document_subtype ENUM('racun', 'ugovor', 'potvrda', 'licna_karta', 'pasos', 'ostalo') NOT NULL,
+    document_subtype ENUM('virman', 'gotovina', 'kartica', 'racun', 'ugovor', 'potvrda', 'licna_karta', 'pasos', 'ostalo') NOT NULL,
 
     status ENUM('uploaded', 'reviewed', 'approved', 'rejected', 'reshoot_requested') DEFAULT 'uploaded',
     admin_comment TEXT,

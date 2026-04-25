@@ -42,16 +42,19 @@ function renderUserWelcome(user) {
   }
 }
 
-function startUpload(tipDokumenta) {
+function startUpload(tipDokumenta, podtipDokumenta = "ostalo") {
   // Store document type and redirect to camera page
   localStorage.setItem("selectedDocumentType", tipDokumenta);
+  localStorage.setItem("selectedDocumentSubtype", podtipDokumenta);
   window.location.href = "camera.html";
 }
 
 let currentDocumentType = "";
+let currentDocumentSubtype = "ostalo";
 
-function uploadFromFile(tipDokumenta) {
+function uploadFromFile(tipDokumenta, podtipDokumenta = "ostalo") {
   currentDocumentType = tipDokumenta;
+  currentDocumentSubtype = podtipDokumenta;
   document.getElementById("fileInput").click();
 }
 
@@ -61,14 +64,14 @@ function handleFileSelect(event) {
 
   // Process each selected file
   for (let file of files) {
-    uploadFile(file, currentDocumentType);
+    uploadFile(file, currentDocumentType, currentDocumentSubtype);
   }
 
   // Reset file input
   event.target.value = "";
 }
 
-async function uploadFile(file, documentType) {
+async function uploadFile(file, documentType, documentSubtype = "ostalo") {
   try {
     // Validate file type
     const allowedTypes = [
@@ -95,7 +98,7 @@ async function uploadFile(file, documentType) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("documentType", documentType);
-    formData.append("documentSubtype", "ostalo"); // Default subtype
+    formData.append("documentSubtype", documentSubtype);
     formData.append("userComment", "");
 
     // Show upload progress
@@ -302,7 +305,7 @@ function displayDocuments(documents) {
         </td>
         <td>
           <span class="badge bg-secondary">${doc.document_type}</span><br>
-          <small>${doc.document_subtype}</small>
+          <small>${getDocumentSubtypeLabel(doc.document_subtype)}</small>
         </td>
         <td>${statusBadge}</td>
         <td><small>${formatDate(doc.upload_date)}</small></td>
@@ -329,6 +332,16 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function getDocumentSubtypeLabel(subtype) {
+  const labels = {
+    virman: "Virman",
+    gotovina: "Gotovina",
+    kartica: "Kartica",
+    ostalo: "Ostalo",
+  };
+  return labels[subtype] || subtype || "-";
 }
 
 // Get status badge for document

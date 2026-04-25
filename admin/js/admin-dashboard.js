@@ -372,7 +372,8 @@ function displayDocuments(documents) {
             <td>
                 <span class="badge bg-primary">${getDocumentTypeLabel(
                   doc.document_type || doc.documentType || "undefined"
-                )}</span>
+                )}</span><br>
+                <small>${getDocumentSubtypeLabel(doc.document_subtype)}</small>
             </td>
             <td>${doc.username}</td>
             <td>
@@ -582,6 +583,16 @@ function getDocumentTypeLabel(type) {
     izvod: "Izvod",
   };
   return labels[type] || type;
+}
+
+function getDocumentSubtypeLabel(subtype) {
+  const labels = {
+    virman: "Virman",
+    gotovina: "Gotovina",
+    kartica: "Kartica",
+    ostalo: "Ostalo",
+  };
+  return labels[subtype] || subtype || "-";
 }
 
 function formatFileSize(bytes) {
