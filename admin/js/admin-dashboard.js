@@ -365,6 +365,7 @@ function displayDocuments(documents) {
                     ? `<br><small class="text-muted">${doc.comment}</small>`
                     : ""
                 }
+                ${getFiscalizationLink(doc.fiscalization_url)}
             </td>
             <td>
                 <span class="badge bg-primary">${getDocumentTypeLabel(
@@ -410,6 +411,22 @@ function displayDocuments(documents) {
     `
     )
     .join("");
+}
+
+function getFiscalizationLink(url) {
+  if (!url) return "";
+
+  const safeUrl = escapeHtml(url);
+  return `<br><a href="${safeUrl}" target="_blank" rel="noopener" class="small">Fiskalizacija QR</a>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function getDocumentPreview(doc) {

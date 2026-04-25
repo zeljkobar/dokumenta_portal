@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS documents (
     status ENUM('uploaded', 'reviewed', 'approved', 'rejected', 'reshoot_requested') DEFAULT 'uploaded',
     admin_comment TEXT,
     user_comment TEXT,
+    fiscalization_url VARCHAR(1000),
 
     upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_date TIMESTAMP NULL,
@@ -249,6 +250,7 @@ SELECT
     d.document_subtype,
     d.status,
     d.admin_comment,
+    d.fiscalization_url,
     d.upload_date,
     d.reviewed_date,
     CASE

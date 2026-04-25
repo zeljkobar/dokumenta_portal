@@ -2,6 +2,7 @@
 let videoStream = null;
 let capturedImages = [];
 let documentType = "";
+let captureMode = "document";
 
 const DEFAULT_SCAN_SETTINGS = {
   filter: "clean",
@@ -17,18 +18,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   documentType = localStorage.getItem("selectedDocumentType") || "ostalo";
 
-  const titles = {
-    ulazni: "Slikanje ulaznog dokumenta",
-    izlazni: "Slikanje izlaznog dokumenta",
-    izvod: "Slikanje bankovnog izvoda",
-    racun: "Slikanje racuna",
-    ugovor: "Slikanje ugovora",
-    potvrda: "Slikanje potvrde",
-    ostalo: "Slikanje dokumenta",
-  };
-
   document.getElementById("documentTypeTitle").textContent =
-    titles[documentType] || titles.ostalo;
+    getDocumentTitle();
 
   initCamera();
 
@@ -75,6 +66,12 @@ async function captureImage() {
 
   try {
     const originalBlob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+
+    if (captureMode === "qr") {
+      await captureQrCode(originalBlob, canvas);
+      return;
+    }
+
     const image = await createCapturedImage(originalBlob);
     capturedImages.push(image);
     showPreview();
@@ -92,11 +89,71 @@ async function createCapturedImage(originalBlob) {
     url: "",
     settings: { ...DEFAULT_SCAN_SETTINGS },
     cropDetected: false,
+    isQr: false,
+    qrValue: "",
     timestamp: Date.now(),
   };
 
   await reprocessImage(image);
   return image;
+}
+
+async function createQrImage(originalBlob, qrValue) {
+  const image = {
+    originalBlob,
+    originalUrl: URL.createObjectURL(originalBlob),
+    blob: originalBlob,
+    url: "",
+    settings: {
+      filter: "contrast",
+      autoCrop: false,
+      rotation: 0,
+    },
+    cropDetected: false,
+    isQr: true,
+    qrValue: qrValue || "",
+    timestamp: Date.now(),
+  };
+
+  await reprocessImage(image);
+  return image;
+}
+
+async function captureQrCode(originalBlob, sourceCanvas) {
+  const qrValue = await decodeQrFromCanvas(sourceCanvas);
+  const qrImage = await createQrImage(originalBlob, qrValue);
+
+  removeExistingQrImage();
+  capturedImages.push(qrImage);
+
+  if (qrValue) {
+    document.getElementById("fiscalizationUrl").value = qrValue;
+    setQrStatus("QR link je procitan i QR slika je dodata kao zadnja strana.", "success");
+  } else {
+    setQrStatus(
+      "QR slika je dodata kao zadnja strana, ali link nije procitan. Mozete ga unijeti rucno.",
+      "warning"
+    );
+  }
+
+  captureMode = "document";
+  showPreview();
+}
+
+async function decodeQrFromCanvas(canvas) {
+  if (!("BarcodeDetector" in window)) {
+    return "";
+  }
+
+  try {
+    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+    const results = await detector.detect(canvas);
+    const qrResult = results.find((result) => result.rawValue);
+    return qrResult ? qrResult.rawValue : "";
+  } catch (error) {
+    console.warn("QR decode failed:", error);
+    return "";
+  }
 }
 
 async function reprocessImage(image) {
@@ -325,8 +382,12 @@ function canvasToBlob(canvas, type, quality) {
 }
 
 function showPreview() {
+  captureMode = "document";
   document.getElementById("cameraSection").classList.add("d-none");
   document.getElementById("previewSection").classList.remove("d-none");
+  document.getElementById("cancelQrScanBtn").classList.add("d-none");
+  document.getElementById("documentTypeTitle").textContent =
+    getDocumentTitle();
 
   stopCamera();
   updatePreviewContainer();
@@ -337,22 +398,34 @@ function updatePreviewContainer() {
   container.innerHTML = "";
 
   capturedImages.forEach((image, index) => {
+    const pageLabel = image.isQr ? "QR kod" : `Strana ${getDocumentPageNumber(index)}`;
+    const statusLabel = image.isQr
+      ? image.qrValue
+        ? "Link procitan"
+        : "Link nije procitan"
+      : image.cropDetected
+        ? "Papir pronadjen"
+        : "Bez auto crop-a";
+    const statusClass = image.isQr
+      ? image.qrValue
+        ? "text-success"
+        : "text-warning"
+      : image.cropDetected
+        ? "text-success"
+        : "text-muted";
+
     const div = document.createElement("div");
     div.className = "scan-page";
     div.innerHTML = `
       <div class="scan-preview-frame">
-        <img src="${image.url}" class="document-preview" alt="Strana ${
-      index + 1
-    }">
+        <img src="${image.url}" class="document-preview" alt="${pageLabel}">
         <button class="btn btn-danger btn-sm scan-remove-btn" onclick="removeImage(${index})" title="Obrisi stranu">
           x
         </button>
       </div>
       <div class="scan-page-meta">
-        <strong>Strana ${index + 1}</strong>
-        <span class="${image.cropDetected ? "text-success" : "text-muted"}">
-          ${image.cropDetected ? "Papir pronadjen" : "Bez auto crop-a"}
-        </span>
+        <strong>${pageLabel}</strong>
+        <span class="${statusClass}">${statusLabel}</span>
       </div>
       <div class="scan-controls">
         <div class="btn-group btn-group-sm w-100" role="group" aria-label="Filteri">
@@ -378,6 +451,12 @@ function updatePreviewContainer() {
     `;
     container.appendChild(div);
   });
+}
+
+function getDocumentPageNumber(index) {
+  return capturedImages
+    .slice(0, index + 1)
+    .filter((image) => !image.isQr).length;
 }
 
 function filterButton(index, filter, label, activeFilter) {
@@ -434,6 +513,11 @@ function removeImage(index) {
 
   capturedImages.splice(index, 1);
 
+  if (image.isQr) {
+    document.getElementById("fiscalizationUrl").value = "";
+    setQrStatus("QR kod je uklonjen. Mozete ga ponovo uslikati.", "muted");
+  }
+
   if (capturedImages.length === 0) {
     addPage();
   } else {
@@ -442,13 +526,87 @@ function removeImage(index) {
 }
 
 function addPage() {
+  captureMode = "document";
   document.getElementById("cameraSection").classList.remove("d-none");
   document.getElementById("previewSection").classList.add("d-none");
+  document.getElementById("cancelQrScanBtn").classList.add("d-none");
+  document.getElementById("documentTypeTitle").textContent =
+    getDocumentTitle();
   initCamera();
 }
 
+function startQrScan() {
+  if (capturedImages.filter((image) => !image.isQr).length === 0) {
+    showError("Prvo slikajte dokument, pa zatim posebno QR kod.");
+    return;
+  }
+
+  captureMode = "qr";
+  document.getElementById("previewSection").classList.add("d-none");
+  document.getElementById("cameraSection").classList.remove("d-none");
+  document.getElementById("cancelQrScanBtn").classList.remove("d-none");
+  document.getElementById("documentTypeTitle").textContent =
+    "Slikanje QR koda";
+  setQrStatus("Priblizite kameru QR kodu i uslikajte ga.", "muted");
+  initCamera();
+}
+
+function cancelQrScan() {
+  captureMode = "document";
+  showPreview();
+}
+
+function removeExistingQrImage() {
+  const existingIndex = capturedImages.findIndex((image) => image.isQr);
+
+  if (existingIndex === -1) return;
+
+  const existingImage = capturedImages[existingIndex];
+  URL.revokeObjectURL(existingImage.originalUrl);
+  if (existingImage.url) URL.revokeObjectURL(existingImage.url);
+  capturedImages.splice(existingIndex, 1);
+}
+
+function getUploadImages() {
+  const documentPages = capturedImages.filter((image) => !image.isQr);
+  const qrPages = capturedImages.filter((image) => image.isQr);
+  return [...documentPages, ...qrPages];
+}
+
+function setQrStatus(message, tone) {
+  const status = document.getElementById("qrStatus");
+  if (!status) return;
+
+  status.textContent = message;
+  status.className = "form-text";
+
+  if (tone === "success") {
+    status.classList.add("text-success");
+  } else if (tone === "warning") {
+    status.classList.add("text-warning");
+  } else {
+    status.classList.add("text-muted");
+  }
+}
+
+function getDocumentTitle() {
+  const titles = {
+    ulazni: "Slikanje ulaznog dokumenta",
+    izlazni: "Slikanje izlaznog dokumenta",
+    izvod: "Slikanje bankovnog izvoda",
+    racun: "Slikanje racuna",
+    ugovor: "Slikanje ugovora",
+    potvrda: "Slikanje potvrde",
+    ostalo: "Slikanje dokumenta",
+  };
+
+  return titles[documentType] || titles.ostalo;
+}
+
 async function uploadDocument() {
-  if (capturedImages.length === 0) {
+  const uploadImages = getUploadImages();
+
+  if (uploadImages.filter((image) => !image.isQr).length === 0) {
     showError("Morate slikati najmanje jednu stranu dokumenta.");
     return;
   }
@@ -462,20 +620,28 @@ async function uploadDocument() {
     const comment = document.getElementById("comment").value;
     const formData = new FormData();
 
-    for (let i = 0; i < capturedImages.length; i++) {
+    for (let i = 0; i < uploadImages.length; i++) {
+      const image = uploadImages[i];
       formData.append(
         "files",
-        capturedImages[i].blob,
-        `${documentType}_strana_${i + 1}.jpg`
+        image.blob,
+        image.isQr
+          ? `${documentType}_qr_kod.jpg`
+          : `${documentType}_strana_${i + 1}.jpg`
       );
     }
+
+    const fiscalizationUrl = document
+      .getElementById("fiscalizationUrl")
+      .value.trim();
 
     formData.append("documentType", documentType);
     formData.append("documentSubtype", "ostalo");
     formData.append("userComment", comment);
+    formData.append("fiscalizationUrl", fiscalizationUrl);
     formData.append(
       "originalName",
-      `${documentType}_${capturedImages.length}_strane.pdf`
+      `${documentType}_${uploadImages.length}_strane.pdf`
     );
 
     const response = await fetch(`${API_BASE}/upload`, {

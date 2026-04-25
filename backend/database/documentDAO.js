@@ -7,9 +7,9 @@ class DocumentDAO {
       INSERT INTO documents (
         admin_id, user_id, filename, original_name, file_path, mime_type,
         original_size, compressed_size, compression_ratio, document_type, 
-        document_subtype, user_comment, suggested_year, suggested_month, 
+        document_subtype, user_comment, fiscalization_url, suggested_year, suggested_month,
         suggested_onedrive_path, actual_year, actual_month, actual_onedrive_path
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Auto-generate suggested OneDrive path
@@ -51,6 +51,7 @@ class DocumentDAO {
       documentData.documentType,
       documentData.documentSubtype || "ostalo",
       documentData.userComment || null,
+      documentData.fiscalizationUrl || null,
       suggestedYear,
       suggestedMonth,
       suggestedPath,

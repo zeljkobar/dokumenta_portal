@@ -399,6 +399,7 @@ app.post(
     try {
       const { documentType, documentSubtype } = req.body;
       const userComment = req.body.userComment || req.body.comment || null;
+      const fiscalizationUrl = req.body.fiscalizationUrl || null;
 
       if (!documentType) {
         return res.status(400).json({ error: "Document type is required" });
@@ -431,6 +432,7 @@ app.post(
         documentType: documentType,
         documentSubtype: documentSubtype || "ostalo",
         userComment: userComment,
+        fiscalizationUrl,
         companyName: user.company_name,
       };
 

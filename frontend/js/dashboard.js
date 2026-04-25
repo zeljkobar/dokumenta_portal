@@ -291,12 +291,14 @@ function displayDocuments(documents) {
   documents.forEach((doc) => {
     const statusBadge = getStatusBadge(doc.status);
     const actionButtons = getDocumentActions(doc);
+    const fiscalizationLink = getFiscalizationLink(doc.fiscalization_url);
 
     html += `
       <tr>
         <td>
           <strong>${doc.original_name}</strong><br>
           <small class="text-muted">${formatFileSize(doc.original_size)}</small>
+          ${fiscalizationLink}
         </td>
         <td>
           <span class="badge bg-secondary">${doc.document_type}</span><br>
@@ -311,6 +313,22 @@ function displayDocuments(documents) {
 
   html += "</tbody></table></div>";
   container.innerHTML = html;
+}
+
+function getFiscalizationLink(url) {
+  if (!url) return "";
+
+  const safeUrl = escapeHtml(url);
+  return `<br><a href="${safeUrl}" target="_blank" rel="noopener" class="small">Fiskalizacija QR</a>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // Get status badge for document
