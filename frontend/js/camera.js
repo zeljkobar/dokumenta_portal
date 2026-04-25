@@ -128,11 +128,18 @@ async function captureQrCode(originalBlob, sourceCanvas) {
 
   if (qrValue) {
     document.getElementById("fiscalizationUrl").value = qrValue;
-    setQrStatus("QR link je procitan i QR slika je dodata kao zadnja strana.", "success");
+    showQrResult(
+      "success",
+      "QR kod je procitan",
+      `Link je sacuvan i QR slika je dodata kao zadnja strana PDF-a. ${shortenQrValue(
+        qrValue
+      )}`
+    );
   } else {
-    setQrStatus(
-      "QR slika je dodata kao zadnja strana, ali link nije procitan. Mozete ga unijeti rucno.",
-      "warning"
+    showQrResult(
+      "warning",
+      "QR slika je dodata, ali link nije procitan",
+      "Mozete ponovo slikati QR ili rucno unijeti link u polje ispod."
     );
   }
 
@@ -515,6 +522,7 @@ function removeImage(index) {
 
   if (image.isQr) {
     document.getElementById("fiscalizationUrl").value = "";
+    clearQrResult();
     setQrStatus("QR kod je uklonjen. Mozete ga ponovo uslikati.", "muted");
   }
 
@@ -547,6 +555,7 @@ function startQrScan() {
   document.getElementById("cancelQrScanBtn").classList.remove("d-none");
   document.getElementById("documentTypeTitle").textContent =
     "Slikanje QR koda";
+  clearQrResult();
   setQrStatus("Priblizite kameru QR kodu i uslikajte ga.", "muted");
   initCamera();
 }
@@ -587,6 +596,31 @@ function setQrStatus(message, tone) {
   } else {
     status.classList.add("text-muted");
   }
+}
+
+function showQrResult(tone, title, message) {
+  const alert = document.getElementById("qrResultAlert");
+  if (!alert) return;
+
+  alert.className = `qr-result-alert qr-result-${tone}`;
+  alert.innerHTML = `
+    <strong>${title}</strong>
+    <span>${message}</span>
+  `;
+  setQrStatus(message, tone);
+}
+
+function clearQrResult() {
+  const alert = document.getElementById("qrResultAlert");
+  if (!alert) return;
+
+  alert.className = "qr-result-alert d-none";
+  alert.innerHTML = "";
+}
+
+function shortenQrValue(value) {
+  if (!value) return "";
+  return value.length > 78 ? `${value.slice(0, 75)}...` : value;
 }
 
 function getDocumentTitle() {
