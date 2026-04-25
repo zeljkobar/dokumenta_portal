@@ -417,7 +417,65 @@ function getFiscalizationLink(url) {
   if (!url) return "";
 
   const safeUrl = escapeHtml(url);
-  return `<br><a href="${safeUrl}" target="_blank" rel="noopener" class="small">Fiskalizacija QR</a>`;
+  return `
+    <div class="fiscal-link-actions mt-2">
+      <a href="${safeUrl}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+        Otvori QR link
+      </a>
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-secondary"
+        data-copy-value="${safeUrl}"
+        onclick="copyFiscalizationLink(this)"
+      >
+        Copy link
+      </button>
+    </div>
+  `;
+}
+
+async function copyFiscalizationLink(button) {
+  const link = button.dataset.copyValue;
+  if (!link) return;
+
+  try {
+    await copyText(link);
+    const originalText = button.textContent;
+    button.textContent = "Kopirano";
+    button.classList.remove("btn-outline-secondary");
+    button.classList.add("btn-success");
+
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove("btn-success");
+      button.classList.add("btn-outline-secondary");
+    }, 1600);
+  } catch (error) {
+    console.error("Copy fiscalization link error:", error);
+    alert("Link nije kopiran. Kopirajte ga ručno iz otvorenog linka.");
+  }
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error("Fallback copy failed");
+  }
 }
 
 function escapeHtml(value) {
