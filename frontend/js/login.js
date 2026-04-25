@@ -36,8 +36,4 @@ document.addEventListener("DOMContentLoaded", function () {
       loginSpinner.classList.add("d-none");
     }
   });
-
-  // Pre-fill demo credentials for testing
-  document.getElementById("username").value = "demo";
-  document.getElementById("password").value = "demo123";
 });
