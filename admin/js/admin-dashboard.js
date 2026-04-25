@@ -1,6 +1,6 @@
 // Admin dashboard functionality
 let adminUsersCache = [];
-let oneDriveConnected = false;
+let helperDocumentsCache = [];
 
 document.addEventListener("DOMContentLoaded", function () {
   // Check if admin is logged in
@@ -18,13 +18,16 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize dashboard
   loadStats();
   loadUsers();
-  loadOneDriveStatus();
   loadDocuments();
 
   // Setup tab change handlers
   document.getElementById("users-tab").addEventListener("click", function () {
     loadUsers();
   });
+  const helperTab = document.getElementById("helper-tab");
+  if (helperTab) {
+    helperTab.addEventListener("click", loadHelperDocuments);
+  }
 
   // Apply document filters as soon as they change.
   ["filterType", "filterUser", "filterDateFrom", "filterDateTo"].forEach((filterId) => {
@@ -33,81 +36,286 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Setup form handlers
   setupUserManagement();
-  setupOneDriveControls();
+  setupHelperSyncControls();
 });
 
-function setupOneDriveControls() {
-  const connectBtn = document.getElementById("connectOneDriveBtn");
-  if (!connectBtn) return;
-
-  connectBtn.addEventListener("click", connectOneDrive);
-
-  const params = new URLSearchParams(window.location.search);
-  if (params.get("onedrive") === "connected") {
-    alert("OneDrive je povezan.");
-    window.history.replaceState({}, document.title, window.location.pathname);
-  } else if (params.get("onedrive") === "error") {
-    alert(`OneDrive povezivanje nije uspjelo: ${params.get("message") || ""}`);
-    window.history.replaceState({}, document.title, window.location.pathname);
+function setupHelperSyncControls() {
+  const refreshBtn = document.getElementById("refreshHelperBtn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", loadHelperDocuments);
   }
+
+  ["helperFilterStatus", "helperFilterType", "helperFilterCompany"].forEach(
+    (filterId) => {
+      const element = document.getElementById(filterId);
+      if (!element) return;
+
+      element.addEventListener("input", renderHelperDocumentsFromFilters);
+      element.addEventListener("change", renderHelperDocumentsFromFilters);
+    }
+  );
+
+  const clearBtn = document.getElementById("helperClearFiltersBtn");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      clearHelperFilters();
+      renderHelperDocumentsFromFilters();
+    });
+  }
+
+  const helperTable = document.getElementById("helperDocumentsTable");
+  if (!helperTable) return;
+
+  helperTable.addEventListener("click", async function (event) {
+    const downloadBtn = event.target.closest(".helper-download-btn");
+    if (downloadBtn) {
+      const documentId = downloadBtn.dataset.id;
+      const originalName = downloadBtn.dataset.name || "document.pdf";
+      await downloadHelperDocument(documentId, originalName);
+      return;
+    }
+
+    const markBtn = event.target.closest(".helper-mark-synced-btn");
+    if (markBtn) {
+      const documentId = markBtn.dataset.id;
+      await markHelperDocumentSynced(documentId);
+    }
+  });
 }
 
-async function loadOneDriveStatus() {
+function clearHelperFilters() {
+  const status = document.getElementById("helperFilterStatus");
+  const type = document.getElementById("helperFilterType");
+  const company = document.getElementById("helperFilterCompany");
+
+  if (status) status.value = "";
+  if (type) type.value = "";
+  if (company) company.value = "";
+}
+
+async function loadHelperDocuments() {
+  const table = document.getElementById("helperDocumentsTable");
+  if (!table) return;
+
+  table.innerHTML = `
+    <tr>
+      <td colspan="8" class="text-center">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Učitava...</span>
+        </div>
+      </td>
+    </tr>
+  `;
+
   try {
-    const response = await fetch(`${API_BASE}/admin/onedrive/status`, {
+    const response = await fetch(`${API_BASE}/admin/helper/documents?limit=500`, {
       headers: AdminAuth.getAuthHeaders(),
     });
-    const status = await response.json();
+    const data = await response.json().catch(() => []);
 
-    oneDriveConnected = Boolean(status.connected);
-    renderOneDriveStatus(status);
-    loadDocuments();
+    if (!response.ok) {
+      throw new Error(data.error || "Greška pri učitavanju helper dokumenata");
+    }
+
+    helperDocumentsCache = Array.isArray(data) ? data : [];
+    updateHelperStats(helperDocumentsCache);
+    renderHelperDocumentsFromFilters();
   } catch (error) {
-    console.error("Error loading OneDrive status:", error);
-    renderOneDriveStatus({ configured: false, connected: false });
+    console.error("Helper documents error:", error);
+    table.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-danger">
+          ${escapeHtml(error.message || "Greška pri učitavanju helper dokumenata")}
+        </td>
+      </tr>
+    `;
+    updateHelperStats([]);
   }
 }
 
-function renderOneDriveStatus(status) {
-  const badge = document.getElementById("oneDriveStatusBadge");
-  const button = document.getElementById("connectOneDriveBtn");
-  if (!badge || !button) return;
+function updateHelperStats(documents) {
+  const counts = documents.reduce(
+    (acc, doc) => {
+      const status = String(doc.syncStatus || "pending").toLowerCase();
+      acc.total += 1;
+      if (status === "pending") acc.pending += 1;
+      if (status === "synced") acc.synced += 1;
+      if (status === "failed") acc.failed += 1;
+      return acc;
+    },
+    { total: 0, pending: 0, synced: 0, failed: 0 }
+  );
 
-  if (!status.configured) {
-    badge.textContent = "OneDrive nije konfigurisan";
-    badge.className = "badge bg-warning text-dark align-self-center";
-    button.disabled = true;
+  const total = document.getElementById("helperTotalCount");
+  const pending = document.getElementById("helperPendingCount");
+  const synced = document.getElementById("helperSyncedCount");
+  const failed = document.getElementById("helperFailedCount");
+
+  if (total) total.textContent = counts.total;
+  if (pending) pending.textContent = counts.pending;
+  if (synced) synced.textContent = counts.synced;
+  if (failed) failed.textContent = counts.failed;
+}
+
+function renderHelperDocumentsFromFilters() {
+  const table = document.getElementById("helperDocumentsTable");
+  if (!table) return;
+
+  const statusFilter = (
+    document.getElementById("helperFilterStatus")?.value || ""
+  ).toLowerCase();
+  const typeFilter = (
+    document.getElementById("helperFilterType")?.value || ""
+  ).toLowerCase();
+  const companyFilter = (
+    document.getElementById("helperFilterCompany")?.value || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const filtered = helperDocumentsCache.filter((doc) => {
+    const status = String(doc.syncStatus || "pending").toLowerCase();
+    const type = String(doc.documentType || "").toLowerCase();
+    const company = String(doc.companyName || "").toLowerCase();
+
+    if (statusFilter && status !== statusFilter) return false;
+    if (typeFilter && type !== typeFilter) return false;
+    if (companyFilter && !company.includes(companyFilter)) return false;
+
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    table.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          Nema dokumenata za zadate filtere.
+        </td>
+      </tr>
+    `;
     return;
   }
 
-  if (status.connected) {
-    badge.textContent = "OneDrive povezan";
-    badge.className = "badge bg-success align-self-center";
-    button.textContent = "🔄 Reconnect OneDrive";
-  } else {
-    badge.textContent = "OneDrive nije povezan";
-    badge.className = "badge bg-secondary align-self-center";
-    button.textContent = "🔗 Connect OneDrive";
-  }
+  table.innerHTML = filtered
+    .map((doc) => {
+      const fileName = escapeHtml(doc.originalName || doc.filename || "-");
+      const companyName = escapeHtml(doc.companyName || "-");
+      const type = escapeHtml(getDocumentTypeLabel(doc.documentType || "-"));
+      const subtype = escapeHtml(getDocumentSubtypeLabel(doc.documentSubtype));
+      const path = escapeHtml(doc.relativePath || "-");
+      const yearMonth = `${doc.year || "-"}/${String(doc.month || "-")}`;
+      const canMarkSynced = String(doc.syncStatus || "pending") !== "synced";
 
-  button.disabled = false;
+      return `
+        <tr>
+          <td>${doc.id}</td>
+          <td>
+            <strong>${fileName}</strong>
+            <br />
+            <small class="text-muted">${formatDate(doc.uploadDate)}</small>
+          </td>
+          <td>${companyName}</td>
+          <td>
+            <span class="badge bg-primary">${type}</span>
+            <br />
+            <small>${subtype}</small>
+          </td>
+          <td>${yearMonth}</td>
+          <td><small>${path}</small></td>
+          <td>${getHelperStatusBadge(doc.syncStatus)}</td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary helper-download-btn"
+                data-id="${doc.id}"
+                data-name="${fileName}"
+              >
+                📥 Download
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-success helper-mark-synced-btn"
+                data-id="${doc.id}"
+                ${canMarkSynced ? "" : "disabled"}
+              >
+                ✅ Mark synced
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
-async function connectOneDrive() {
+function getHelperStatusBadge(statusValue) {
+  const status = String(statusValue || "pending").toLowerCase();
+  const labels = {
+    pending: '<span class="badge bg-secondary helper-badge">Pending</span>',
+    synced: '<span class="badge bg-success helper-badge">Synced</span>',
+    failed: '<span class="badge bg-danger helper-badge">Failed</span>',
+    skipped:
+      '<span class="badge bg-warning text-dark helper-badge">Skipped</span>',
+  };
+  return labels[status] || labels.pending;
+}
+
+async function downloadHelperDocument(documentId, originalName) {
   try {
-    const response = await fetch(`${API_BASE}/admin/onedrive/connect`, {
+    const response = await fetch(`${API_BASE}/admin/documents/${documentId}/download`, {
       headers: AdminAuth.getAuthHeaders(),
     });
-    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "OneDrive povezivanje nije pokrenuto");
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Neuspjelo preuzimanje dokumenta");
     }
 
-    window.location.href = data.authUrl;
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = originalName || `document_${documentId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   } catch (error) {
-    console.error("OneDrive connect error:", error);
-    alert(error.message || "Greška pri povezivanju OneDrive-a");
+    console.error("Helper download error:", error);
+    alert(error.message || "Greška pri preuzimanju dokumenta");
+  }
+}
+
+async function markHelperDocumentSynced(documentId) {
+  if (!confirm("Označiti dokument kao synced?")) {
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/helper/documents/${documentId}/mark-synced`,
+      {
+        method: "POST",
+        headers: {
+          ...AdminAuth.getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ localPath: "manual-admin" }),
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Neuspješno označavanje sync statusa");
+    }
+
+    await loadHelperDocuments();
+    await loadDocuments();
+    await loadStats();
+  } catch (error) {
+    console.error("Helper mark synced error:", error);
+    alert(error.message || "Greška pri mark synced akciji");
   }
 }
 
@@ -476,18 +684,12 @@ function displayDocuments(documents) {
                     ? `<span class="badge bg-success">${doc.compressionRatio}%</span>`
                     : "-"
                 }
-                ${getOneDriveSyncBadge(doc)}
             </td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" onclick="downloadDocument('${
                   doc.filename
                 }', '${doc.originalName || doc.filename}')">
                     📥
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="syncDocumentToOneDrive(${
-                  doc.id
-                })" ${oneDriveConnected ? "" : "disabled"}>
-                    ☁️
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument('${
                   doc.id
@@ -499,17 +701,6 @@ function displayDocuments(documents) {
     `
     )
     .join("");
-}
-
-function getOneDriveSyncBadge(doc) {
-  const status = doc.sync_status || "pending";
-  const labels = {
-    pending: '<span class="badge bg-secondary mt-1 d-block">OneDrive: ceka</span>',
-    synced: '<span class="badge bg-success mt-1 d-block">OneDrive: synced</span>',
-    failed: '<span class="badge bg-danger mt-1 d-block">OneDrive: greska</span>',
-    skipped: '<span class="badge bg-warning text-dark mt-1 d-block">OneDrive: skipped</span>',
-  };
-  return labels[status] || labels.pending;
 }
 
 function getSyncPathEditor(doc) {
@@ -732,40 +923,6 @@ async function deleteDocument(id, filename) {
   } catch (error) {
     console.error("Error deleting document:", error);
     alert("Greška mreže prilikom brisanja dokumenta");
-  }
-}
-
-async function syncDocumentToOneDrive(documentId) {
-  if (!oneDriveConnected) {
-    alert("Prvo povežite OneDrive.");
-    return;
-  }
-
-  if (!confirm("Sinhronizovati ovaj dokument na OneDrive?")) {
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `${API_BASE}/admin/documents/${documentId}/sync-onedrive`,
-      {
-        method: "POST",
-        headers: AdminAuth.getAuthHeaders(),
-      }
-    );
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data.error || "OneDrive sync nije uspio");
-    }
-
-    alert("Dokument je poslat na OneDrive.");
-    await loadDocuments();
-    await loadStats();
-  } catch (error) {
-    console.error("OneDrive sync error:", error);
-    alert(error.message || "Greška pri OneDrive sync-u");
-    await loadDocuments();
   }
 }
 

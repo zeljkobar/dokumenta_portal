@@ -41,6 +41,9 @@
       .sync-path-editor .btn {
         grid-column: span 2;
       }
+      .helper-badge {
+        font-size: 0.78rem;
+      }
       .admin-header {
         background: linear-gradient(135deg, #dc3545 0%, #6f42c1 100%);
       }
@@ -166,6 +169,18 @@
         <li class="nav-item" role="presentation">
           <button
             class="nav-link"
+            id="helper-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#helper"
+            type="button"
+            role="tab"
+          >
+            🖥️ Helper Sync
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
             id="users-tab"
             data-bs-toggle="tab"
             data-bs-target="#users"
@@ -285,19 +300,6 @@
                 <div class="d-flex flex-wrap gap-2 justify-content-end">
                   <button
                     type="button"
-                    class="btn btn-outline-dark"
-                    id="connectOneDriveBtn"
-                  >
-                    🔗 Connect OneDrive
-                  </button>
-                  <span
-                    class="badge bg-secondary align-self-center"
-                    id="oneDriveStatusBadge"
-                  >
-                    OneDrive nije povezan
-                  </span>
-                  <button
-                    type="button"
                     class="btn btn-success"
                     id="downloadSelectedBtn"
                     disabled
@@ -366,6 +368,126 @@
           </div>
         </div>
         <!-- End Documents Tab -->
+
+        <!-- Helper Tab -->
+        <div class="tab-pane fade" id="helper" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+              <h4 class="mb-1">Desktop Helper Sync</h4>
+              <p class="text-muted mb-0">
+                Pregled dokumenata koji čekaju ili su završili lokalnu sinhronizaciju.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              id="refreshHelperBtn"
+            >
+              🔄 Refresh
+            </button>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card border-primary">
+                <div class="card-body py-3">
+                  <small class="text-muted d-block">Ukupno</small>
+                  <h5 class="mb-0" id="helperTotalCount">0</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-secondary">
+                <div class="card-body py-3">
+                  <small class="text-muted d-block">Pending</small>
+                  <h5 class="mb-0" id="helperPendingCount">0</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-success">
+                <div class="card-body py-3">
+                  <small class="text-muted d-block">Synced</small>
+                  <h5 class="mb-0" id="helperSyncedCount">0</h5>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-danger">
+                <div class="card-body py-3">
+                  <small class="text-muted d-block">Failed</small>
+                  <h5 class="mb-0" id="helperFailedCount">0</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">Filteri</h5>
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <select class="form-select" id="helperFilterStatus">
+                    <option value="">Svi statusi</option>
+                    <option value="pending">Pending</option>
+                    <option value="synced">Synced</option>
+                    <option value="failed">Failed</option>
+                    <option value="skipped">Skipped</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select" id="helperFilterType">
+                    <option value="">Svi tipovi</option>
+                    <option value="ulazni">Ulazni</option>
+                    <option value="izlazni">Izlazni</option>
+                    <option value="izvod">Izvod</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <input
+                    class="form-control"
+                    id="helperFilterCompany"
+                    placeholder="Pretraga firme..."
+                  />
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button class="btn btn-secondary" id="helperClearFiltersBtn">
+                    Očisti
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Dokument</th>
+                      <th>Firma</th>
+                      <th>Tip</th>
+                      <th>God/Mj</th>
+                      <th>Putanja</th>
+                      <th>Status</th>
+                      <th>Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody id="helperDocumentsTable">
+                    <tr>
+                      <td colspan="8" class="text-center text-muted">
+                        Klikni na Helper Sync tab za učitavanje.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- End Helper Tab -->
 
         <!-- Users Tab -->
         <div class="tab-pane fade" id="users" role="tabpanel">

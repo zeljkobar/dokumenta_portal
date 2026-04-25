@@ -17,6 +17,11 @@ const dbConfig = {
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
 };
+const dbName = dbConfig.database;
+
+function escapeIdentifier(value) {
+  return `\`${String(value).replace(/`/g, "``")}\``;
+}
 
 // Create connection pool
 const pool = mysql.createPool(dbConfig);
@@ -29,6 +34,27 @@ async function testConnection() {
     connection.release();
     return true;
   } catch (error) {
+    if (error && error.code === "ER_BAD_DB_ERROR") {
+      try {
+        const bootstrapConnection = await mysql.createConnection({
+          host: dbConfig.host,
+          user: dbConfig.user,
+          password: dbConfig.password,
+          charset: dbConfig.charset,
+          timezone: dbConfig.timezone,
+        });
+
+        await bootstrapConnection.query(
+          `CREATE DATABASE IF NOT EXISTS ${escapeIdentifier(dbName)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+        );
+        await bootstrapConnection.end();
+        console.log(`✅ Database '${dbName}' created`);
+        return true;
+      } catch (bootstrapError) {
+        console.error("❌ Database bootstrap failed:", bootstrapError.message);
+      }
+    }
+
     console.error("❌ Database connection failed:", error.message);
     return false;
   }
@@ -68,7 +94,14 @@ async function initializeDatabase() {
 
   try {
     const schemaPath = path.join(__dirname, "schema.sql");
-    const schemaSql = await fs.readFile(schemaPath, "utf8");
+    let schemaSql = await fs.readFile(schemaPath, "utf8");
+
+    // Respect configured DB_NAME instead of hardcoded schema defaults.
+    schemaSql = schemaSql.replace(
+      /CREATE DATABASE IF NOT EXISTS\s+\w+\s*;/i,
+      `CREATE DATABASE IF NOT EXISTS ${escapeIdentifier(dbName)};`
+    );
+    schemaSql = schemaSql.replace(/USE\s+\w+\s*;/i, `USE ${escapeIdentifier(dbName)};`);
 
     connection = await getConnection();
     await connection.query(schemaSql);
