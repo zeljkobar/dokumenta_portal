@@ -149,6 +149,53 @@ function sanitizeOneDriveFileName(fileName) {
     .slice(0, 180);
 }
 
+function normalizeRelativeFolder(folderPath) {
+  const cleaned = String(folderPath || "")
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+
+  return cleaned[0] === "Firme" ? cleaned.slice(1).join("/") : cleaned.join("/");
+}
+
+function getDocumentSyncFolder(document) {
+  return normalizeRelativeFolder(
+    document.actual_onedrive_path || document.suggested_onedrive_path
+  );
+}
+
+function buildSyncPath(companyName, year, type, month, subtype) {
+  const monthFolder = String(month).padStart(2, "0");
+  const subtypeFolder =
+    type === "ulazni" && ["gotovina", "kartica"].includes(subtype)
+      ? `/${subtype}`
+      : "";
+
+  return `/Firme/${companyName || "Unknown"}/${year}/${type}/${monthFolder}${subtypeFolder}/`;
+}
+
+function mapDocumentForHelper(document) {
+  const relativePath = getDocumentSyncFolder(document);
+  return {
+    id: document.id,
+    filename: document.filename,
+    originalName: document.original_name,
+    companyName: document.company_name,
+    documentType: document.document_type,
+    documentSubtype: document.document_subtype,
+    year: document.actual_year || document.suggested_year,
+    month: String(document.actual_month || document.suggested_month).padStart(
+      2,
+      "0"
+    ),
+    relativePath,
+    syncStatus: document.sync_status,
+    uploadDate: document.upload_date,
+    size: document.compressed_size || document.original_size,
+    downloadUrl: `/api/admin/documents/${document.id}/download`,
+  };
+}
+
 async function graphRequest(accessToken, url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -990,21 +1037,114 @@ app.get("/api/admin/sync-review", authenticateAdmin, async (req, res) => {
   }
 });
 
+// Desktop helper: list documents waiting for local OneDrive-folder sync.
+app.get("/api/admin/helper/documents", authenticateAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || "200"), 500);
+    const documents = await DocumentDAO.getPendingHelperSync(
+      req.user.adminId,
+      limit
+    );
+    res.json(documents.map(mapDocumentForHelper));
+  } catch (error) {
+    console.error("Helper documents error:", error);
+    res.status(500).json({ error: "Failed to get helper documents" });
+  }
+});
+
+// Secure admin download endpoint for desktop helper and admin UI.
+app.get(
+  "/api/admin/documents/:id/download",
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await DocumentDAO.getById(documentId, req.user.adminId);
+
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const fileName = sanitizeOneDriveFileName(
+        document.original_name || document.filename
+      );
+      res.download(document.file_path, fileName);
+    } catch (error) {
+      console.error("Admin document download error:", error);
+      res.status(500).json({ error: "Failed to download document" });
+    }
+  }
+);
+
+// Desktop helper: mark document as synced after it is written locally.
+app.post(
+  "/api/admin/helper/documents/:id/mark-synced",
+  authenticateAdmin,
+  async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      const document = await DocumentDAO.getById(documentId, req.user.adminId);
+
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      await DocumentDAO.updateSyncStatus(
+        documentId,
+        "synced",
+        req.body.localPath || null,
+        null,
+        req.user.adminId
+      );
+
+      res.json({ message: "Document marked as synced" });
+    } catch (error) {
+      console.error("Helper mark synced error:", error);
+      res.status(500).json({ error: "Failed to mark document as synced" });
+    }
+  }
+);
+
 // Update OneDrive path
 app.put(
   "/api/admin/documents/:id/onedrive-path",
   authenticateAdmin,
   async (req, res) => {
     try {
-      const { year, month, path } = req.body;
+      const { year, month, path, documentType, documentSubtype } = req.body;
       const documentId = req.params.id;
+      const document = await DocumentDAO.getById(documentId, req.user.adminId);
+
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      const actualYear = parseInt(year || document.actual_year || document.suggested_year);
+      const actualMonth = parseInt(
+        month || document.actual_month || document.suggested_month
+      );
+      const actualType = documentType || document.document_type;
+      const actualSubtype = documentSubtype || document.document_subtype;
+      const actualPath =
+        path ||
+        buildSyncPath(
+          document.company_name,
+          actualYear,
+          actualType,
+          actualMonth,
+          actualSubtype
+        );
 
       const success = await DocumentDAO.updateOneDrivePath(
         documentId,
-        year,
-        month,
-        path,
-        req.user.adminId
+        actualYear,
+        actualMonth,
+        actualPath,
+        req.user.adminId,
+        {
+          documentType: actualType,
+          documentSubtype: actualSubtype,
+        }
       );
 
       if (success) {

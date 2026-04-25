@@ -194,22 +194,36 @@ class DocumentDAO {
     actualYear,
     actualMonth,
     actualPath,
-    adminId
+    adminId,
+    updates = {}
   ) {
+    const setClauses = [
+      "actual_year = ?",
+      "actual_month = ?",
+      "actual_onedrive_path = ?",
+      "path_manually_set = TRUE",
+      "sync_pending_review = FALSE",
+    ];
+    const params = [actualYear, actualMonth, actualPath];
+
+    if (updates.documentType) {
+      setClauses.push("document_type = ?");
+      params.push(updates.documentType);
+    }
+
+    if (updates.documentSubtype) {
+      setClauses.push("document_subtype = ?");
+      params.push(updates.documentSubtype);
+    }
+
     const sql = `
       UPDATE documents 
-      SET actual_year = ?, actual_month = ?, actual_onedrive_path = ?, 
-          path_manually_set = TRUE, sync_pending_review = FALSE
+      SET ${setClauses.join(", ")}
       WHERE id = ? AND admin_id = ?
     `;
 
-    const result = await query(sql, [
-      actualYear,
-      actualMonth,
-      actualPath,
-      id,
-      adminId,
-    ]);
+    params.push(id, adminId);
+    const result = await query(sql, params);
     return result.affectedRows > 0;
   }
 
@@ -224,6 +238,20 @@ class DocumentDAO {
     `;
 
     return await query(sql, [adminId]);
+  }
+
+  static async getPendingHelperSync(adminId, limit = 200) {
+    const sql = `
+      SELECT d.*, u.username, u.company_name, u.full_name
+      FROM documents d
+      JOIN users u ON d.user_id = u.id
+      WHERE d.admin_id = ?
+        AND d.sync_status != 'synced'
+      ORDER BY d.upload_date DESC
+      LIMIT ?
+    `;
+
+    return await query(sql, [adminId, parseInt(limit)]);
   }
 
   // Update OneDrive sync status

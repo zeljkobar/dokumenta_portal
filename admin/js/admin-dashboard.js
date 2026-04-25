@@ -452,6 +452,7 @@ function displayDocuments(documents) {
                   doc.document_type || doc.documentType || "undefined"
                 )}</span><br>
                 <small>${getDocumentSubtypeLabel(doc.document_subtype)}</small>
+                ${getSyncPathEditor(doc)}
             </td>
             <td>${doc.username}</td>
             <td>
@@ -509,6 +510,77 @@ function getOneDriveSyncBadge(doc) {
     skipped: '<span class="badge bg-warning text-dark mt-1 d-block">OneDrive: skipped</span>',
   };
   return labels[status] || labels.pending;
+}
+
+function getSyncPathEditor(doc) {
+  const docId = doc.id;
+  const year = doc.actual_year || doc.suggested_year || new Date().getFullYear();
+  const month = String(doc.actual_month || doc.suggested_month || 1).padStart(
+    2,
+    "0"
+  );
+  const type = doc.document_type || "ulazni";
+  const subtype = doc.document_subtype || "ostalo";
+
+  return `
+    <div class="sync-path-editor mt-2" data-doc-id="${docId}">
+      <input class="form-control form-control-sm sync-year" type="number" value="${year}" min="2020" max="2100" title="Godina" />
+      <select class="form-select form-select-sm sync-month" title="Mjesec">
+        ${getMonthOptions(month)}
+      </select>
+      <select class="form-select form-select-sm sync-type" title="Tip">
+        ${getTypeOptions(type)}
+      </select>
+      <select class="form-select form-select-sm sync-subtype" title="Podtip">
+        ${getSubtypeOptions(subtype)}
+      </select>
+      <button class="btn btn-sm btn-outline-secondary" onclick="saveDocumentSyncPath(${docId})">
+        Save path
+      </button>
+    </div>
+  `;
+}
+
+function getMonthOptions(selectedMonth) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, "0");
+    return `<option value="${month}" ${
+      month === selectedMonth ? "selected" : ""
+    }>${month}</option>`;
+  }).join("");
+}
+
+function getTypeOptions(selectedType) {
+  const options = [
+    ["ulazni", "Ulazni"],
+    ["izlazni", "Izlazni"],
+    ["izvod", "Izvod"],
+  ];
+  return options
+    .map(
+      ([value, label]) =>
+        `<option value="${value}" ${
+          value === selectedType ? "selected" : ""
+        }>${label}</option>`
+    )
+    .join("");
+}
+
+function getSubtypeOptions(selectedSubtype) {
+  const options = [
+    ["virman", "Virman"],
+    ["gotovina", "Gotovina"],
+    ["kartica", "Kartica"],
+    ["ostalo", "Ostalo"],
+  ];
+  return options
+    .map(
+      ([value, label]) =>
+        `<option value="${value}" ${
+          value === selectedSubtype ? "selected" : ""
+        }>${label}</option>`
+    )
+    .join("");
 }
 
 function getFiscalizationLink(url) {
@@ -694,6 +766,45 @@ async function syncDocumentToOneDrive(documentId) {
     console.error("OneDrive sync error:", error);
     alert(error.message || "Greška pri OneDrive sync-u");
     await loadDocuments();
+  }
+}
+
+async function saveDocumentSyncPath(documentId) {
+  const editor = document.querySelector(
+    `.sync-path-editor[data-doc-id="${documentId}"]`
+  );
+  if (!editor) return;
+
+  const payload = {
+    year: editor.querySelector(".sync-year").value,
+    month: editor.querySelector(".sync-month").value,
+    documentType: editor.querySelector(".sync-type").value,
+    documentSubtype: editor.querySelector(".sync-subtype").value,
+  };
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/documents/${documentId}/onedrive-path`,
+      {
+        method: "PUT",
+        headers: {
+          ...AdminAuth.getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Putanja nije sacuvana");
+    }
+
+    alert("Putanja je sacuvana.");
+    await loadDocuments();
+  } catch (error) {
+    console.error("Save sync path error:", error);
+    alert(error.message || "Greška pri čuvanju putanje");
   }
 }
 
