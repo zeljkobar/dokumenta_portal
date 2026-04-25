@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Desktop Helper Downloads</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: #f5f7fb;
+        color: #1f2937;
+      }
+      .wrap {
+        max-width: 880px;
+        margin: 32px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        padding: 20px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      .muted {
+        color: #6b7280;
+      }
+      code {
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      ul {
+        margin-top: 10px;
+      }
+      .actions {
+        margin-top: 18px;
+      }
+      a.btn {
+        display: inline-block;
+        text-decoration: none;
+        background: #0f766e;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Desktop Helper Downloads</h1>
+        <p class="muted">
+          Build artefakti ce se pojaviti ovdje nakon lokalnog ili CI build-a.
+        </p>
+
+        <p>
+          Pokreni build u folderu <code>desktop-helper/</code>:
+        </p>
+        <ul>
+          <li><code>npm run build:mac</code> za .dmg</li>
+          <li><code>npm run build:win</code> za .exe</li>
+        </ul>
+
+        <p class="muted">
+          Output je podešen na <code>frontend/downloads/</code>.
+        </p>
+
+        <div class="actions">
+          <a class="btn" href="/admin/dashboard.html">Nazad na Admin</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

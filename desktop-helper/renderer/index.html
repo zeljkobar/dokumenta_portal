@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="sr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dokumenta Helper</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --text: #1f2a37;
+        --muted: #6b7280;
+        --accent: #0f766e;
+        --accent-dark: #115e59;
+        --danger: #b91c1c;
+        --line: #d1d5db;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: radial-gradient(circle at 10% 20%, #e2f7f4, #f6f8fc 55%);
+        color: var(--text);
+      }
+      .app {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+      }
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+      }
+      .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .primary:hover {
+        background: var(--accent-dark);
+      }
+      .ghost {
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      .danger {
+        background: var(--danger);
+        color: #fff;
+      }
+      .status {
+        margin-top: 8px;
+        font-size: 14px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .ok {
+        color: #065f46;
+      }
+      .err {
+        color: var(--danger);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .badge {
+        padding: 3px 7px;
+        border-radius: 999px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .badge.pending {
+        background: #e5e7eb;
+      }
+      .badge.synced {
+        background: #bbf7d0;
+      }
+      .badge.failed {
+        background: #fecaca;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .log {
+        width: 100%;
+        min-height: 120px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        resize: vertical;
+        font-family: Menlo, Monaco, monospace;
+        font-size: 12px;
+        background: #f9fafb;
+      }
+      @media (max-width: 900px) {
+        .top {
+          grid-template-columns: 1fr;
+        }
+        .toolbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="card">
+        <h1>Dokumenta Desktop Helper</h1>
+        <p class="subtitle">
+          Lokalna sinhronizacija dokumenata iz portala u OneDrive/Firme strukturu.
+        </p>
+      </div>
+
+      <div class="top">
+        <div class="card">
+          <h3>Admin Login</h3>
+          <div class="field">
+            <label for="portalUrl">Portal URL</label>
+            <input id="portalUrl" placeholder="https://dokumenta.summasummarum.me" />
+          </div>
+          <div class="field">
+            <label for="username">Username</label>
+            <input id="username" />
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" />
+          </div>
+          <div class="row">
+            <button id="loginBtn" class="primary">Prijavi se</button>
+            <button id="logoutBtn" class="ghost">Odjava</button>
+          </div>
+          <div id="loginStatus" class="status muted">Niste prijavljeni.</div>
+        </div>
+
+        <div class="card">
+          <h3>Lokalni Folder</h3>
+          <p class="muted">Izaberi root folder, npr. OneDrive/Firme.</p>
+          <div class="row">
+            <button id="selectFolderBtn" class="primary">Izaberi folder</button>
+            <button id="openDownloadsBtn" class="ghost">Portal Downloads</button>
+          </div>
+          <div id="folderPath" class="status muted">Folder nije izabran.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h3 style="margin: 0">Dokumenti za Sync</h3>
+            <small class="muted" id="docCount">0 dokumenata</small>
+          </div>
+          <div class="row">
+            <button id="refreshBtn" class="ghost">Refresh</button>
+            <button id="selectAllBtn" class="ghost">Select all</button>
+            <button id="syncSelectedBtn" class="primary">Sync selected</button>
+          </div>
+        </div>
+
+        <div style="overflow: auto">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>ID</th>
+                <th>Dokument</th>
+                <th>Firma</th>
+                <th>Tip</th>
+                <th>Putanja</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="documentsBody">
+              <tr>
+                <td colspan="7" class="muted">Prijavite se za učitavanje.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Log</h3>
+        <textarea id="logOutput" class="log" readonly></textarea>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
