@@ -350,7 +350,9 @@ function displayDocuments(documents) {
             <td>
                 <input type="checkbox" class="form-check-input document-checkbox" value="${
                   doc.id
-                }" data-filename="${doc.filename}">
+                }" data-filename="${doc.filename}" data-fiscalization-url="${escapeHtml(
+                  doc.fiscalization_url || ""
+                )}">
             </td>
             <td>${getDocumentPreview(doc)}</td>
             <td>
@@ -631,6 +633,10 @@ document.addEventListener("DOMContentLoaded", function () {
     .getElementById("downloadSelectedBtn")
     .addEventListener("click", downloadSelected);
 
+  document
+    .getElementById("downloadSelectedLinksBtn")
+    .addEventListener("click", downloadSelectedLinks);
+
   // Delete selected button
   document
     .getElementById("deleteSelectedBtn")
@@ -645,11 +651,17 @@ document.addEventListener("DOMContentLoaded", function () {
 function updateDownloadButtons() {
   const checkedBoxes = document.querySelectorAll(".document-checkbox:checked");
   const downloadSelectedBtn = document.getElementById("downloadSelectedBtn");
+  const downloadSelectedLinksBtn = document.getElementById(
+    "downloadSelectedLinksBtn"
+  );
   const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+  const selectedLinksCount = getSelectedFiscalizationLinks().length;
 
   downloadSelectedBtn.disabled = checkedBoxes.length === 0;
+  downloadSelectedLinksBtn.disabled = selectedLinksCount === 0;
   deleteSelectedBtn.disabled = checkedBoxes.length === 0;
   downloadSelectedBtn.textContent = `📥 Download Selected (${checkedBoxes.length})`;
+  downloadSelectedLinksBtn.textContent = `🔗 Download linkove (${selectedLinksCount})`;
   deleteSelectedBtn.textContent = `🗑️ Delete Selected (${checkedBoxes.length})`;
 }
 
@@ -667,6 +679,61 @@ async function downloadSelected() {
     await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay between downloads
     downloadDocument(filename, originalName);
   }
+}
+
+function downloadSelectedLinks() {
+  const links = getSelectedFiscalizationLinks();
+
+  if (links.length === 0) {
+    alert("Izabrani dokumenti nemaju fiskalizacione linkove.");
+    return;
+  }
+
+  const rows = links
+    .map((link) => `<tr><td>${escapeHtml(link)}</td></tr>`)
+    .join("");
+  const excelContent = `
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+      </head>
+      <body>
+        <table>
+          ${rows}
+        </table>
+      </body>
+    </html>
+  `;
+  const blob = new Blob([excelContent], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `fiskalizacioni_linkovi_${formatDateForFilename(
+    new Date()
+  )}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+function getSelectedFiscalizationLinks() {
+  return Array.from(document.querySelectorAll(".document-checkbox:checked"))
+    .map((checkbox) => checkbox.dataset.fiscalizationUrl || "")
+    .map((link) => link.trim())
+    .filter(Boolean);
+}
+
+function formatDateForFilename(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}_${hours}-${minutes}`;
 }
 
 async function deleteSelected() {
