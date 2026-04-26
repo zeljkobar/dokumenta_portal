@@ -132,6 +132,88 @@
         transform: translateY(-1px);
         box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
       }
+
+      @media (max-width: 992px) {
+        .nav-tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          padding-bottom: 6px;
+        }
+
+        .nav-tabs .nav-item {
+          flex: 0 0 auto;
+        }
+
+        .nav-tabs .nav-link {
+          padding: 10px 14px;
+          margin-right: 8px;
+          font-size: 0.92rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .navbar .container {
+          padding-left: 12px;
+          padding-right: 12px;
+        }
+
+        .navbar-brand {
+          font-size: 1rem;
+          max-width: 56vw;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .navbar-text {
+          display: none;
+        }
+
+        .container.mt-4 {
+          margin-top: 0.9rem !important;
+          padding-left: 10px;
+          padding-right: 10px;
+        }
+
+        .tab-content {
+          padding: 12px;
+        }
+
+        .row.mb-4 > [class*="col-md-"] {
+          margin-bottom: 10px;
+        }
+
+        .card .card-body {
+          padding: 12px;
+        }
+
+        .btn,
+        .form-control,
+        .form-select {
+          min-height: 44px;
+        }
+
+        .sync-path-editor {
+          width: 100%;
+          min-width: 0;
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .table {
+          font-size: 0.9rem;
+        }
+
+        .fiscal-link-actions {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .fiscal-link-actions .btn {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
