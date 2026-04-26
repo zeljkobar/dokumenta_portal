@@ -39,6 +39,9 @@
       }
       .actions {
         margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
       }
       a.btn {
         display: inline-block;
@@ -47,6 +50,9 @@
         color: #fff;
         padding: 10px 14px;
         border-radius: 8px;
+      }
+      a.btn.secondary {
+        background: #2563eb;
       }
     </style>
   </head>
@@ -71,6 +77,13 @@
         </p>
 
         <div class="actions">
+          <a
+            class="btn secondary"
+            href="/downloads/Dokumenta%20Helper-1.0.0-arm64.dmg"
+            download
+          >
+            Download za macOS (.dmg)
+          </a>
           <a class="btn" href="/admin/dashboard.html">Nazad na Admin</a>
         </div>
       </div>
