@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Dokumenta Portal icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b5fff"/>
+      <stop offset="100%" stop-color="#00a8a8"/>
+    </linearGradient>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
+  <rect x="136" y="104" width="240" height="304" rx="40" fill="#ffffff"/>
+  <rect x="172" y="172" width="168" height="22" rx="11" fill="#0b5fff"/>
+  <rect x="172" y="218" width="128" height="22" rx="11" fill="#2c6bff"/>
+  <rect x="172" y="264" width="152" height="22" rx="11" fill="#4b88ff"/>
+  <circle cx="334" cy="340" r="46" fill="#00a8a8"/>
+  <path d="M313 340l15 15 27-33" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
