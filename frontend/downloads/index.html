@@ -37,6 +37,26 @@
       ul {
         margin-top: 10px;
       }
+      .panel {
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background: #f9fafb;
+      }
+      .panel h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      pre {
+        margin: 8px 0 0;
+        padding: 10px;
+        overflow: auto;
+        background: #111827;
+        color: #f9fafb;
+        border-radius: 6px;
+        font-size: 13px;
+      }
       .actions {
         margin-top: 18px;
         display: flex;
@@ -85,6 +105,24 @@
             Download za macOS (.dmg)
           </a>
           <a class="btn" href="/admin/dashboard.html">Nazad na Admin</a>
+        </div>
+
+        <div class="panel">
+          <h3>macOS: ako javlja "is damaged"</h3>
+          <p class="muted">
+            Za unsigned app (bez Apple Developer naloga), pokreni ove 2 komande u Terminalu:
+          </p>
+          <pre>xattr -dr com.apple.quarantine ~/Downloads/Dokumenta\ Helper-1.0.0-arm64.dmg
+xattr -dr com.apple.quarantine /Applications/Dokumenta\ Helper.app && open /Applications/Dokumenta\ Helper.app</pre>
+        </div>
+
+        <div class="panel">
+          <h3>Windows varijanta</h3>
+          <p class="muted">
+            Windows installer (.exe) se builduje komandom <code>npm run build:win</code> u
+            folderu <code>desktop-helper/</code>. Preporuka je da se build radi na Windows mašini,
+            pa onda uploaduje u <code>frontend/downloads/</code> za preuzimanje sa sajta.
+          </p>
         </div>
       </div>
     </div>
