@@ -548,6 +548,50 @@
               </div>
             </div>
           </div>
+
+          <div class="card mt-4 d-none" id="superAdminSection">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h5 class="card-title mb-0">Upravljanje adminima</h5>
+                  <small class="text-muted">
+                    Samo superadmin može dodavati i brisati admin naloge.
+                  </small>
+                </div>
+                <button
+                  class="btn btn-outline-primary"
+                  data-bs-toggle="modal"
+                  data-bs-target="#addAdminModal"
+                >
+                  ➕ Dodaj admina
+                </button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Firma</th>
+                      <th>Plan</th>
+                      <th>Status</th>
+                      <th>Poslednja prijava</th>
+                      <th>Akcije</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminsTable">
+                    <tr>
+                      <td colspan="8" class="text-center text-muted">
+                        Učitava admine...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- End Users Tab -->
 
@@ -813,6 +857,65 @@
               <button type="submit" class="btn btn-primary">
                 Sačuvaj izmene
               </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Admin Modal -->
+    <div class="modal fade" id="addAdminModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Dodaj novog admina</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <form id="addAdminForm">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="adminUsername" class="form-label">Username *</label>
+                <input type="text" class="form-control" id="adminUsername" required />
+              </div>
+              <div class="mb-3">
+                <label for="adminEmail" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="adminEmail" required />
+              </div>
+              <div class="mb-3">
+                <label for="adminPassword" class="form-label">Lozinka *</label>
+                <input type="password" class="form-control" id="adminPassword" required />
+              </div>
+              <div class="mb-3">
+                <label for="adminCompanyName" class="form-label">Naziv firme *</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="adminCompanyName"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="adminFullName" class="form-label">Ime i prezime</label>
+                <input type="text" class="form-control" id="adminFullName" />
+              </div>
+              <div class="mb-3">
+                <label for="adminPhone" class="form-label">Telefon</label>
+                <input type="text" class="form-control" id="adminPhone" />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
+                Otkaži
+              </button>
+              <button type="submit" class="btn btn-primary">Kreiraj admina</button>
             </div>
           </form>
         </div>

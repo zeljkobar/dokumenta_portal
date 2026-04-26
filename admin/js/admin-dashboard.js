@@ -1,6 +1,8 @@
 // Admin dashboard functionality
 let adminUsersCache = [];
 let helperDocumentsCache = [];
+let adminAccountsCache = [];
+let isSuperAdmin = false;
 
 document.addEventListener("DOMContentLoaded", function () {
   // Check if admin is logged in
@@ -11,6 +13,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Display admin welcome message
   const admin = AdminAuth.getAdmin();
+  isSuperAdmin = Boolean(admin && admin.isSuperAdmin);
   document.getElementById(
     "adminWelcome"
   ).textContent = `Pozdrav, ${admin.username}!`;
@@ -23,6 +26,9 @@ document.addEventListener("DOMContentLoaded", function () {
   // Setup tab change handlers
   document.getElementById("users-tab").addEventListener("click", function () {
     loadUsers();
+    if (isSuperAdmin) {
+      loadAdmins();
+    }
   });
   const helperTab = document.getElementById("helper-tab");
   if (helperTab) {
@@ -37,6 +43,14 @@ document.addEventListener("DOMContentLoaded", function () {
   // Setup form handlers
   setupUserManagement();
   setupHelperSyncControls();
+
+  if (isSuperAdmin) {
+    const superAdminSection = document.getElementById("superAdminSection");
+    if (superAdminSection) {
+      superAdminSection.classList.remove("d-none");
+    }
+    loadAdmins();
+  }
 });
 
 function setupHelperSyncControls() {
@@ -335,6 +349,14 @@ function setupUserManagement() {
       e.preventDefault();
       await updateUser();
     });
+
+  const addAdminForm = document.getElementById("addAdminForm");
+  if (addAdminForm) {
+    addAdminForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      await addAdminAccount();
+    });
+  }
 }
 
 async function addUser() {
@@ -582,6 +604,157 @@ async function loadUsers() {
         </tr>
       `;
     }
+  }
+}
+
+async function loadAdmins() {
+  if (!isSuperAdmin) return;
+
+  const adminsTable = document.getElementById("adminsTable");
+  if (!adminsTable) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/admins`, {
+      headers: AdminAuth.getAuthHeaders(),
+    });
+    const data = await response.json().catch(() => []);
+
+    if (!response.ok) {
+      throw new Error(data.error || "Neuspješno učitavanje admin naloga");
+    }
+
+    adminAccountsCache = Array.isArray(data) ? data : [];
+
+    if (!adminAccountsCache.length) {
+      adminsTable.innerHTML = `
+        <tr>
+          <td colspan="8" class="text-center text-muted">Nema admin naloga</td>
+        </tr>
+      `;
+      return;
+    }
+
+    adminsTable.innerHTML = adminAccountsCache
+      .map((admin) => {
+        const isCurrentAdmin = Number(admin.id) === Number(AdminAuth.getAdmin()?.id);
+        const canDelete = !admin.is_superadmin && !isCurrentAdmin;
+
+        return `
+          <tr>
+            <td>${admin.id}</td>
+            <td>
+              ${escapeHtml(admin.username)}
+              ${
+                admin.is_superadmin
+                  ? '<span class="badge bg-warning text-dark ms-1">Superadmin</span>'
+                  : ""
+              }
+            </td>
+            <td>${escapeHtml(admin.email || "-")}</td>
+            <td>${escapeHtml(admin.company_name || "-")}</td>
+            <td>${escapeHtml(admin.subscription_plan || "basic")}</td>
+            <td>
+              <span class="badge ${admin.is_active ? "bg-success" : "bg-secondary"}">
+                ${admin.is_active ? "Aktivan" : "Neaktivan"}
+              </span>
+            </td>
+            <td>
+              ${
+                admin.last_login
+                  ? new Date(admin.last_login).toLocaleDateString("sr-RS")
+                  : "Nikad"
+              }
+            </td>
+            <td>
+              <button
+                class="btn btn-sm btn-outline-danger"
+                onclick="deleteAdminAccount(${admin.id}, '${escapeHtml(admin.username)}')"
+                ${canDelete ? "" : "disabled"}
+              >
+                🗑️ Obriši
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  } catch (error) {
+    console.error("Error loading admins:", error);
+    adminsTable.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-danger">${escapeHtml(
+          error.message || "Greška pri učitavanju admin naloga"
+        )}</td>
+      </tr>
+    `;
+  }
+}
+
+async function addAdminAccount() {
+  if (!isSuperAdmin) return;
+
+  const payload = {
+    username: document.getElementById("adminUsername").value.trim(),
+    email: document.getElementById("adminEmail").value.trim(),
+    password: document.getElementById("adminPassword").value,
+    companyName: document.getElementById("adminCompanyName").value.trim(),
+    fullName: document.getElementById("adminFullName").value.trim(),
+    phone: document.getElementById("adminPhone").value.trim(),
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/admins`, {
+      method: "POST",
+      headers: {
+        ...AdminAuth.getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Neuspješno kreiranje admin naloga");
+    }
+
+    alert("Admin nalog je uspješno kreiran.");
+
+    const modal = bootstrap.Modal.getInstance(
+      document.getElementById("addAdminModal")
+    );
+    if (modal) modal.hide();
+    document.getElementById("addAdminForm").reset();
+
+    await loadAdmins();
+  } catch (error) {
+    console.error("Error creating admin:", error);
+    alert(error.message || "Greška pri kreiranju admin naloga");
+  }
+}
+
+async function deleteAdminAccount(adminId, username) {
+  if (!isSuperAdmin) return;
+
+  if (!confirm(`Obrisati admin nalog "${username}"?`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/admins/${adminId}`, {
+      method: "DELETE",
+      headers: AdminAuth.getAuthHeaders(),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Neuspješno brisanje admin naloga");
+    }
+
+    alert("Admin nalog je obrisan.");
+    await loadAdmins();
+  } catch (error) {
+    console.error("Error deleting admin:", error);
+    alert(error.message || "Greška pri brisanju admin naloga");
   }
 }
 

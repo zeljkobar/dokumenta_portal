@@ -78,6 +78,26 @@ function mapDocumentForHelper(document) {
   };
 }
 
+function getConfiguredSuperAdminUsernames() {
+  const raw = process.env.SUPERADMIN_USERNAMES || process.env.SUPERADMIN_USERNAME || "";
+  return raw
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isSuperAdminAccount(admin) {
+  if (!admin) return false;
+
+  const configuredUsernames = getConfiguredSuperAdminUsernames();
+  if (configuredUsernames.length > 0) {
+    return configuredUsernames.includes(String(admin.username || "").toLowerCase());
+  }
+
+  // Backward-compatible fallback when SUPERADMIN_USERNAMES is not set.
+  return Number(admin.id) === 1;
+}
+
 // Multer configuration
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -140,9 +160,17 @@ function authenticateAdmin(req, res, next) {
       username: admin.username,
       adminId: admin.id, // Admin's own ID
       role: "admin",
+      isSuperAdmin: isSuperAdminAccount(admin),
     };
     next();
   });
+}
+
+function requireSuperAdmin(req, res, next) {
+  if (!req.user || !req.user.isSuperAdmin) {
+    return res.status(403).json({ error: "Super admin access required" });
+  }
+  next();
 }
 
 // ============================================================================
@@ -217,6 +245,7 @@ app.post("/api/admin/login", async (req, res) => {
       id: admin.id,
       username: admin.username,
       role: "admin",
+      isSuperAdmin: isSuperAdminAccount(admin),
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "8h",
@@ -229,6 +258,7 @@ app.post("/api/admin/login", async (req, res) => {
         username: admin.username,
         companyName: admin.company_name,
         role: "admin",
+        isSuperAdmin: isSuperAdminAccount(admin),
       },
     });
   } catch (error) {
@@ -601,6 +631,129 @@ app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to get users" });
   }
 });
+
+// Super admin: list all admin accounts
+app.get(
+  "/api/admin/admins",
+  authenticateAdmin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const admins = await AdminUserDAO.getAll();
+      res.json(
+        admins.map((admin) => ({
+          ...admin,
+          is_superadmin: isSuperAdminAccount(admin),
+        }))
+      );
+    } catch (error) {
+      console.error("Error getting admins:", error);
+      res.status(500).json({ error: "Failed to get admins" });
+    }
+  }
+);
+
+// Super admin: create admin account
+app.post(
+  "/api/admin/admins",
+  authenticateAdmin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const {
+        username,
+        email,
+        password,
+        companyName,
+        fullName,
+        phone,
+        subscriptionPlan,
+        maxClients,
+        maxStorageMb,
+      } = req.body;
+
+      if (!username || !email || !password || !companyName) {
+        return res.status(400).json({
+          error: "Username, email, password i company name su obavezni",
+        });
+      }
+
+      const existingAdmin = await AdminUserDAO.getByUsername(username);
+      if (existingAdmin) {
+        return res.status(400).json({ error: "Admin username already exists" });
+      }
+
+      const existingEmail = await AdminUserDAO.getByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ error: "Admin email already exists" });
+      }
+
+      const adminId = await AdminUserDAO.create({
+        username,
+        email,
+        password_hash: password,
+        companyName,
+        fullName,
+        phone,
+        subscription_plan: subscriptionPlan || "basic",
+        max_clients: Number(maxClients) || 10,
+        max_storage_mb: Number(maxStorageMb) || 1000,
+      });
+
+      res.json({ message: "Admin created successfully", adminId });
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      res.status(500).json({ error: "Failed to create admin" });
+    }
+  }
+);
+
+// Super admin: delete admin account
+app.delete(
+  "/api/admin/admins/:id",
+  authenticateAdmin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const adminIdToDelete = Number(req.params.id);
+
+      if (!adminIdToDelete) {
+        return res.status(400).json({ error: "Invalid admin id" });
+      }
+
+      if (adminIdToDelete === req.user.id) {
+        return res.status(400).json({ error: "Ne možete obrisati svoj admin nalog" });
+      }
+
+      const targetAdmin = await AdminUserDAO.getById(adminIdToDelete);
+      if (!targetAdmin) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+
+      if (isSuperAdminAccount(targetAdmin)) {
+        return res.status(400).json({ error: "Super admin nalog ne može biti obrisan" });
+      }
+
+      const limits = await AdminUserDAO.checkLimits(adminIdToDelete);
+      if ((limits.current_clients || 0) > 0) {
+        return res.status(400).json({
+          error:
+            "Admin ima aktivne korisnike. Prvo prebacite ili obrišite korisnike tog admina.",
+        });
+      }
+
+      const success = await AdminUserDAO.delete(adminIdToDelete);
+      if (!success) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+
+      res.json({ message: "Admin deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting admin:", error);
+      res.status(500).json({ error: "Failed to delete admin" });
+    }
+  }
+);
 
 // Create new user
 app.post("/api/admin/users", authenticateAdmin, async (req, res) => {

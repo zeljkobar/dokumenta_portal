@@ -291,6 +291,13 @@ class AdminUserDAO {
     return result.affectedRows > 0;
   }
 
+  // Delete admin account (super admin function)
+  static async delete(id) {
+    const sql = "DELETE FROM admin_users WHERE id = ?";
+    const result = await query(sql, [id]);
+    return result.affectedRows > 0;
+  }
+
   // Check subscription limits
   static async checkLimits(adminId) {
     const sql = `
