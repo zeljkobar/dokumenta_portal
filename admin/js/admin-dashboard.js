@@ -216,7 +216,8 @@ function renderHelperDocumentsFromFilters() {
       const companyName = escapeHtml(doc.companyName || "-");
       const type = escapeHtml(getDocumentTypeLabel(doc.documentType || "-"));
       const subtype = escapeHtml(getDocumentSubtypeLabel(doc.documentSubtype));
-      const path = escapeHtml(doc.relativePath || "-");
+      const pathDisplay = getSyncPathDisplay(doc);
+      const pathEditor = getSyncPathEditor(doc);
       const yearMonth = `${doc.year || "-"}/${String(doc.month || "-")}`;
       const canMarkSynced = String(doc.syncStatus || "pending") !== "synced";
 
@@ -235,7 +236,10 @@ function renderHelperDocumentsFromFilters() {
             <small>${subtype}</small>
           </td>
           <td>${yearMonth}</td>
-          <td><small>${path}</small></td>
+          <td class="helper-path-cell">
+            ${pathDisplay}
+            ${pathEditor}
+          </td>
           <td>${getHelperStatusBadge(doc.syncStatus)}</td>
           <td>
             <div class="d-flex flex-wrap gap-1">
@@ -794,7 +798,7 @@ function displayDocuments(documents) {
   if (documents.length === 0) {
     tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center text-muted">
+                <td colspan="9" class="text-center text-muted">
                     Nema dokumenata za prikaz
                 </td>
             </tr>
@@ -833,7 +837,7 @@ function displayDocuments(documents) {
                   doc.document_type || doc.documentType || "undefined"
                 )}</span><br>
                 <small>${getDocumentSubtypeLabel(doc.document_subtype)}</small>
-                ${getSyncPathEditor(doc)}
+                ${getSyncPathDisplay(doc)}
             </td>
             <td>${doc.username}</td>
             <td>
@@ -878,13 +882,13 @@ function displayDocuments(documents) {
 
 function getSyncPathEditor(doc) {
   const docId = doc.id;
-  const year = doc.actual_year || doc.suggested_year || new Date().getFullYear();
-  const month = String(doc.actual_month || doc.suggested_month || 1).padStart(
-    2,
-    "0"
-  );
-  const type = doc.document_type || "ulazni";
-  const subtype = doc.document_subtype || "ostalo";
+  const year =
+    doc.actual_year || doc.suggested_year || doc.year || new Date().getFullYear();
+  const month = String(
+    doc.actual_month || doc.suggested_month || doc.month || 1
+  ).padStart(2, "0");
+  const type = doc.document_type || doc.documentType || "ulazni";
+  const subtype = doc.document_subtype || doc.documentSubtype || "ostalo";
 
   return `
     <div class="sync-path-editor mt-2" data-doc-id="${docId}">
@@ -901,6 +905,25 @@ function getSyncPathEditor(doc) {
       <button class="btn btn-sm btn-outline-secondary" onclick="saveDocumentSyncPath(${docId})">
         Save path
       </button>
+    </div>
+  `;
+}
+
+function getSyncPathDisplay(doc) {
+  const path =
+    doc.actual_onedrive_path ||
+    doc.suggested_onedrive_path ||
+    doc.relativePath ||
+    "";
+
+  if (!path) {
+    return '<div class="sync-path-display mt-2 text-muted">Putanja nije podesena</div>';
+  }
+
+  return `
+    <div class="sync-path-display mt-2">
+      <small class="text-muted d-block">Preporucena putanja</small>
+      <small>${escapeHtml(path)}</small>
     </div>
   `;
 }
@@ -1132,6 +1155,7 @@ async function saveDocumentSyncPath(documentId) {
 
     alert("Putanja je sacuvana.");
     await loadDocuments();
+    await loadHelperDocuments();
   } catch (error) {
     console.error("Save sync path error:", error);
     alert(error.message || "Greška pri čuvanju putanje");
