@@ -13,6 +13,7 @@ coverage/
 
 # Desktop helper build artifacts (keep .dmg for deploy)
 frontend/downloads/mac-arm64/
+frontend/downloads/win-unpacked/
 frontend/downloads/builder-debug.yml
 frontend/downloads/builder-effective-config.yaml
 frontend/downloads/*.blockmap
