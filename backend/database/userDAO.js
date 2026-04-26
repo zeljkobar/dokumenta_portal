@@ -244,6 +244,13 @@ class AdminUserDAO {
     return await query(sql);
   }
 
+  // Count all admin accounts
+  static async countAdmins() {
+    const sql = "SELECT COUNT(*) as count FROM admin_users";
+    const result = await query(sql);
+    return Number(result[0]?.count || 0);
+  }
+
   // Create new admin
   static async create(adminData) {
     const sql = `

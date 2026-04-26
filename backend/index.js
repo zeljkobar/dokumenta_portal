@@ -86,12 +86,18 @@ function getConfiguredSuperAdminUsernames() {
     .filter(Boolean);
 }
 
-function isSuperAdminAccount(admin) {
+async function isSuperAdminAccount(admin) {
   if (!admin) return false;
 
   const configuredUsernames = getConfiguredSuperAdminUsernames();
   if (configuredUsernames.length > 0) {
     return configuredUsernames.includes(String(admin.username || "").toLowerCase());
+  }
+
+  // If there is only one admin in the system, make that account superadmin.
+  const adminCount = await AdminUserDAO.countAdmins();
+  if (adminCount === 1) {
+    return true;
   }
 
   // Backward-compatible fallback when SUPERADMIN_USERNAMES is not set.
@@ -155,12 +161,14 @@ function authenticateAdmin(req, res, next) {
     const admin = await AdminUserDAO.getById(payload.id);
     if (!admin) return res.status(403).json({ error: "Admin not found" });
 
+    const superAdmin = await isSuperAdminAccount(admin);
+
     req.user = {
       id: admin.id,
       username: admin.username,
       adminId: admin.id, // Admin's own ID
       role: "admin",
-      isSuperAdmin: isSuperAdminAccount(admin),
+      isSuperAdmin: superAdmin,
     };
     next();
   });
@@ -241,11 +249,13 @@ app.post("/api/admin/login", async (req, res) => {
 
     await AdminUserDAO.updateLastLogin(admin.id);
 
+    const superAdmin = await isSuperAdminAccount(admin);
+
     const payload = {
       id: admin.id,
       username: admin.username,
       role: "admin",
-      isSuperAdmin: isSuperAdminAccount(admin),
+      isSuperAdmin: superAdmin,
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "8h",
@@ -258,7 +268,7 @@ app.post("/api/admin/login", async (req, res) => {
         username: admin.username,
         companyName: admin.company_name,
         role: "admin",
-        isSuperAdmin: isSuperAdminAccount(admin),
+        isSuperAdmin: superAdmin,
       },
     });
   } catch (error) {
@@ -640,12 +650,14 @@ app.get(
   async (req, res) => {
     try {
       const admins = await AdminUserDAO.getAll();
-      res.json(
-        admins.map((admin) => ({
+      const adminsWithFlags = [];
+      for (const admin of admins) {
+        adminsWithFlags.push({
           ...admin,
-          is_superadmin: isSuperAdminAccount(admin),
-        }))
-      );
+          is_superadmin: await isSuperAdminAccount(admin),
+        });
+      }
+      res.json(adminsWithFlags);
     } catch (error) {
       console.error("Error getting admins:", error);
       res.status(500).json({ error: "Failed to get admins" });
