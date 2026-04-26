@@ -80,7 +80,7 @@ function renderDocs() {
         <tr>
           <td><input type="checkbox" data-id="${doc.id}" ${checked} /></td>
           <td>${doc.id}</td>
-          <td>${escapeHtml(doc.originalName || doc.filename)}</td>
+          <td>${escapeHtml(doc.syncFileName || doc.originalName || doc.filename)}</td>
           <td>${escapeHtml(doc.companyName || "-")}</td>
           <td>${escapeHtml(doc.documentType || "-")}</td>
           <td><small>${escapeHtml(doc.relativePath || "-")}</small></td>
@@ -223,7 +223,8 @@ async function syncSelected() {
   let failed = 0;
 
   for (const doc of selectedDocs) {
-    const displayName = doc.originalName || doc.filename || `doc_${doc.id}.pdf`;
+    const displayName =
+      doc.syncFileName || doc.originalName || doc.filename || `doc_${doc.id}.pdf`;
 
     try {
       log(`Sync start: #${doc.id} ${displayName}`);

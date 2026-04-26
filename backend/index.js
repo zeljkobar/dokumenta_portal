@@ -31,6 +31,48 @@ function sanitizeOneDriveFileName(fileName) {
     .slice(0, 180);
 }
 
+function slugFilePart(value, fallback = "dokument") {
+  return String(value || fallback)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "dj")
+    .replace(/Đ/g, "Dj")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase()
+    .slice(0, 64) || fallback;
+}
+
+function formatFileDate(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const parts = [
+    safeDate.getFullYear(),
+    String(safeDate.getMonth() + 1).padStart(2, "0"),
+    String(safeDate.getDate()).padStart(2, "0"),
+  ];
+  const time = [
+    String(safeDate.getHours()).padStart(2, "0"),
+    String(safeDate.getMinutes()).padStart(2, "0"),
+    String(safeDate.getSeconds()).padStart(2, "0"),
+  ];
+
+  return `${parts.join("-")}_${time.join("-")}`;
+}
+
+function buildDocumentFileName(document, uploadedAt = new Date()) {
+  const company = slugFilePart(document.company_name || document.companyName, "firma");
+  const type = slugFilePart(document.document_type || document.documentType, "dokument");
+  const subtype = slugFilePart(
+    document.document_subtype || document.documentSubtype,
+    "ostalo"
+  );
+  const date = formatFileDate(document.upload_date || document.uploadDate || uploadedAt);
+  const idPart = document.id ? `_${document.id}` : "";
+
+  return sanitizeOneDriveFileName(`${company}_${type}_${subtype}_${date}${idPart}.pdf`);
+}
+
 function normalizeRelativeFolder(folderPath) {
   const cleaned = String(folderPath || "")
     .replace(/\\/g, "/")
@@ -58,10 +100,12 @@ function buildSyncPath(companyName, year, type, month, subtype) {
 
 function mapDocumentForHelper(document) {
   const relativePath = getDocumentSyncFolder(document);
+  const syncFileName = buildDocumentFileName(document);
   return {
     id: document.id,
     filename: document.filename,
     originalName: document.original_name,
+    syncFileName,
     companyName: document.company_name,
     documentType: document.document_type,
     documentSubtype: document.document_subtype,
@@ -503,17 +547,16 @@ app.post(
       // Get user info for company name
       const user = await UserDAO.getById(req.user.id);
 
-      const hasImages = files.some((file) =>
-        file.mimetype.startsWith("image/")
-      );
       const processedFile = await processFiles(files, documentType);
-      const originalName =
-        req.body.originalName ||
-        (files.length === 1
-          ? hasImages
-            ? `${path.parse(files[0].originalname).name}.pdf`
-            : files[0].originalname
-          : `${documentType}_${files.length}_strane.pdf`);
+      const uploadedAt = new Date();
+      const originalName = buildDocumentFileName(
+        {
+          companyName: user.company_name,
+          documentType,
+          documentSubtype: documentSubtype || "ostalo",
+        },
+        uploadedAt
+      );
 
       const documentData = {
         userId: req.user.id,

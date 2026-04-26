@@ -212,7 +212,9 @@ function renderHelperDocumentsFromFilters() {
 
   table.innerHTML = filtered
     .map((doc) => {
-      const fileName = escapeHtml(doc.originalName || doc.filename || "-");
+      const fileName = escapeHtml(
+        doc.syncFileName || doc.originalName || doc.filename || "-"
+      );
       const companyName = escapeHtml(doc.companyName || "-");
       const type = escapeHtml(getDocumentTypeLabel(doc.documentType || "-"));
       const subtype = escapeHtml(getDocumentSubtypeLabel(doc.documentSubtype));
