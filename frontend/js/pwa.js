@@ -16,26 +16,33 @@
     );
   }
 
+  function isInstallSecureContext() {
+    return window.location.protocol === "https:" || isLocalhost;
+  }
+
   function createInstallButton() {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "pwa-install-btn d-none";
+    button.className = "pwa-install-btn";
     button.id = "pwaInstallBtn";
     button.textContent = "Instaliraj aplikaciju";
     document.body.appendChild(button);
     return button;
   }
 
-  function showIosHint() {
-    if (!isIos() || isStandalone()) return;
+  function showInfoHint(title, message, force = false) {
+    const existing = document.getElementById("pwaRuntimeHint");
+    if (existing) existing.remove();
 
-    const alreadyShown = sessionStorage.getItem("iosInstallHintShown");
-    if (alreadyShown) return;
+    if (!force) {
+      const alreadyShown = sessionStorage.getItem("pwaRuntimeHintShown");
+      if (alreadyShown) return;
+    }
 
     const hint = document.createElement("div");
     hint.className = "pwa-ios-hint";
-    hint.innerHTML =
-      '<strong>Instaliraj aplikaciju:</strong> Safari -> Share -> Add to Home Screen';
+    hint.id = "pwaRuntimeHint";
+    hint.innerHTML = `<strong>${title}</strong> ${message}`;
 
     const close = document.createElement("button");
     close.type = "button";
@@ -48,7 +55,17 @@
 
     hint.appendChild(close);
     document.body.appendChild(hint);
-    sessionStorage.setItem("iosInstallHintShown", "1");
+    sessionStorage.setItem("pwaRuntimeHintShown", "1");
+  }
+
+  function showIosHint(force = false) {
+    if (!isIos() || isStandalone()) return;
+
+    showInfoHint(
+      "Instaliraj aplikaciju:",
+      "Safari -> Share -> Add to Home Screen",
+      force
+    );
   }
 
   async function registerServiceWorker() {
@@ -68,15 +85,41 @@
 
     const installButton = createInstallButton();
 
+    if (isIos()) {
+      installButton.textContent = "Kako instalirati aplikaciju";
+    } else if (!isInstallSecureContext()) {
+      installButton.textContent = "Instalacija trazi HTTPS";
+    } else {
+      installButton.textContent = "Instaliraj aplikaciju";
+    }
+
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       deferredPrompt = event;
-      installButton.classList.remove("d-none");
+      installButton.textContent = "Instaliraj aplikaciju";
     });
 
     installButton.addEventListener("click", async () => {
       if (!deferredPrompt) {
-        showIosHint();
+        if (isIos()) {
+          showIosHint(true);
+          return;
+        }
+
+        if (!isInstallSecureContext()) {
+          showInfoHint(
+            "Instalacija nije dostupna:",
+            "otvorite aplikaciju preko HTTPS domene da biste dobili Install app.",
+            true
+          );
+          return;
+        }
+
+        showInfoHint(
+          "Install app jos nije ponuden:",
+          "provjerite da ste u podrzanom browseru (Chrome/Edge) i da je service worker ucitan.",
+          true
+        );
         return;
       }
 
@@ -99,14 +142,6 @@
 
     if (isIos()) {
       showIosHint();
-    }
-
-    if (!isLocalhost && !isIos()) {
-      setTimeout(() => {
-        if (!deferredPrompt) {
-          installButton.classList.add("d-none");
-        }
-      }, 4000);
     }
   });
 })();
