@@ -145,7 +145,7 @@ async function captureQrCode(originalBlob, sourceCanvas) {
     showQrResult(
       "warning",
       "QR slika je dodata, ali link nije procitan",
-      "Mozete ponovo slikati QR ili rucno unijeti link u polje ispod."
+      "Ponovo slikajte QR kod. Upload nije moguc dok link ne bude procitan."
     );
   }
 
@@ -606,7 +606,8 @@ function updatePreviewContainer() {
         : "text-muted";
 
     const div = document.createElement("div");
-    div.className = "scan-page";
+    const unreadQrClass = image.isQr && !image.qrValue ? " scan-page-qr-missing" : "";
+    div.className = `scan-page${unreadQrClass}`;
     div.innerHTML = `
       <div class="scan-preview-frame">
         <img src="${image.url}" class="document-preview" alt="${pageLabel}">
@@ -826,6 +827,15 @@ async function uploadDocument() {
 
   if (uploadImages.filter((image) => !image.isQr).length === 0) {
     showError("Morate slikati najmanje jednu stranu dokumenta.");
+    return;
+  }
+
+  const hasUnreadableQrCapture = uploadImages.some(
+    (image) => image.isQr && !image.qrValue
+  );
+
+  if (hasUnreadableQrCapture) {
+    showError("Nije procitan QR kod. Ponovo uslikajte QR kod prije upload-a.");
     return;
   }
 

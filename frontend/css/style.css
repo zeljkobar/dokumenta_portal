@@ -171,6 +171,12 @@ h6 {
   box-shadow: 0 6px 16px rgba(17, 39, 86, 0.12);
 }
 
+.scan-page-qr-missing {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2), 0 10px 22px rgba(140, 26, 42, 0.24);
+  background: linear-gradient(180deg, #fff 0%, #fff5f6 100%);
+}
+
 .scan-preview-frame {
   position: relative;
   width: 100%;

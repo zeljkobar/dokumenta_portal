@@ -1,27 +1,35 @@
-const CACHE_NAME = "dokumenta-shell-v1";
+const CACHE_NAME = "dokumenta-shell-v2";
 const RUNTIME_CACHE = "dokumenta-runtime-v1";
 
-const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/dashboard.html",
-  "/camera.html",
-  "/manifest.webmanifest",
-  "/css/style.css?v=20260426",
-  "/js/auth.js",
-  "/js/login.js",
-  "/js/dashboard.js",
-  "/js/camera.js",
-  "/js/pwa.js",
-  "/assets/icons/icon-192.svg",
-  "/assets/icons/icon-512.svg"
+const APP_SHELL_PATHS = [
+  "",
+  "index.html",
+  "dashboard.html",
+  "camera.html",
+  "manifest.webmanifest",
+  "css/style.css?v=20260426",
+  "js/auth.js",
+  "js/login.js",
+  "js/dashboard.js",
+  "js/camera.js",
+  "js/pwa.js",
+  "assets/icons/icon-192.svg",
+  "assets/icons/icon-512.svg",
 ];
+
+function scopeUrl(pathname) {
+  return new URL(pathname, self.registration.scope).href;
+}
+
+function getAppShellUrls() {
+  return APP_SHELL_PATHS.map(scopeUrl);
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(getAppShellUrls()))
       .catch(() => Promise.resolve())
   );
   self.skipWaiting();
@@ -67,7 +75,7 @@ self.addEventListener("fetch", (event) => {
         .catch(async () => {
           const cachedPage = await caches.match(request);
           if (cachedPage) return cachedPage;
-          return caches.match("/index.html");
+          return caches.match(scopeUrl("index.html"));
         })
     );
     return;
