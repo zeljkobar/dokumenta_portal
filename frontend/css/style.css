@@ -133,6 +133,19 @@ h6 {
   margin: 0 auto;
 }
 
+.camera-page .container.mt-4 {
+  margin-top: 0.45rem !important;
+}
+
+.camera-page .card .card-body {
+  padding-bottom: 0.75rem;
+}
+
+.camera-page #camera-view {
+  max-height: min(64vh, 620px);
+  object-fit: cover;
+}
+
 #camera-view {
   width: 100%;
   border-radius: 15px;
@@ -151,7 +164,7 @@ h6 {
 
 .camera-controls {
   position: absolute;
-  bottom: 20px;
+  bottom: 56px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -398,6 +411,18 @@ h6 {
 
   .container.mt-4 {
     margin-top: 0.8rem !important;
+  }
+
+  .camera-page .container.mt-4 {
+    margin-top: 0.35rem !important;
+  }
+
+  .camera-page #camera-view {
+    max-height: 52vh;
+  }
+
+  .camera-page .camera-controls {
+    bottom: 72px;
   }
 
   .container.mt-4 > .row > .col-12 > .card > .card-body {
