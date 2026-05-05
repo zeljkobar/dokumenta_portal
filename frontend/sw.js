@@ -1,5 +1,5 @@
-const CACHE_NAME = "dokumenta-shell-v2";
-const RUNTIME_CACHE = "dokumenta-runtime-v1";
+const CACHE_NAME = "dokumenta-shell-v3";
+const RUNTIME_CACHE = "dokumenta-runtime-v2";
 
 const APP_SHELL_PATHS = [
   "",
@@ -82,20 +82,16 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const networkFetch = fetch(request)
-        .then((response) => {
-          if (!response || response.status !== 200) return response;
-          const responseClone = response.clone();
-          caches
-            .open(RUNTIME_CACHE)
-            .then((cache) => cache.put(request, responseClone))
-            .catch(() => {});
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || networkFetch;
-    })
+    fetch(request)
+      .then((response) => {
+        if (!response || response.status !== 200) return response;
+        const responseClone = response.clone();
+        caches
+          .open(RUNTIME_CACHE)
+          .then((cache) => cache.put(request, responseClone))
+          .catch(() => {});
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
