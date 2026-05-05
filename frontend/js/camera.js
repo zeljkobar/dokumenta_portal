@@ -1349,6 +1349,12 @@ async function uploadDocument() {
     return;
   }
 
+  const capturedQrImage = uploadImages.find((image) => image.isQr);
+  if (!capturedQrImage) {
+    showError("Morate uslikati QR kod prije upload-a.");
+    return;
+  }
+
   const hasUnreadableQrCapture = uploadImages.some(
     (image) => image.isQr && !image.qrValue
   );
